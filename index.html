@@ -1,1 +1,1394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>P2P Chat</title>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --surface: #f5f5f7;
+            --text: #111111;
+            --text-secondary: #666666;
+            --border: #d1d1d6;
+            --accent: #007aff;
+            --accent-text: #ffffff;
+            --own-msg: #007aff;
+            --own-text: #ffffff;
+            --other-msg: #e5e5ea;
+            --other-text: #111111;
+            --system: #8e8e93;
+            --error: #ff3b30;
+            --success: #34c759;
+        }
 
+        [data-theme="dark"] {
+            --bg: #000000;
+            --surface: #1c1c1e;
+            --text: #ffffff;
+            --text-secondary: #8e8e93;
+            --border: #38383a;
+            --accent: #0a84ff;
+            --accent-text: #000000;
+            --own-msg: #0a84ff;
+            --own-text: #000000;
+            --other-msg: #2c2c2e;
+            --other-text: #ffffff;
+            --system: #636366;
+            --error: #ff453a;
+            --success: #30d158;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+        }
+
+        #app {
+            height: 100%;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg);
+            position: relative;
+        }
+
+        header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg);
+            flex-shrink: 0;
+            z-index: 10;
+        }
+
+        h1 {
+            font-size: 17px;
+            font-weight: 600;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .status {
+            font-size: 13px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-right: 8px;
+        }
+
+        .status::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--error);
+        }
+
+        .status.online::before {
+            background: var(--success);
+        }
+
+        button.icon {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 6px;
+            color: var(--text-secondary);
+            font-size: 20px;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 36px;
+            min-height: 36px;
+        }
+
+        button.icon:active {
+            transform: scale(0.95);
+            background: var(--surface);
+        }
+
+        input, button {
+            font-family: inherit;
+            font-size: 16px;
+        }
+
+        .setup {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .setup-content {
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .mode-toggle {
+            display: flex;
+            gap: 0;
+            margin-bottom: 24px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .mode-toggle button {
+            flex: 1;
+            padding: 10px;
+            background: var(--bg);
+            border: none;
+            cursor: pointer;
+            font-size: 15px;
+            color: var(--text-secondary);
+        }
+
+        .mode-toggle button.active {
+            background: var(--surface);
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 400;
+            margin-bottom: 6px;
+            color: var(--text-secondary);
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg);
+            color: var(--text);
+            font-size: 16px;
+            outline: none;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+
+        .btn {
+            padding: 12px;
+            background: var(--accent);
+            color: var(--accent-text);
+            border: none;
+            border-radius: 8px;
+            font-size: 17px;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            touch-action: manipulation;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .btn.secondary {
+            background: var(--surface);
+            color: var(--accent);
+            border: 1px solid var(--border);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .section {
+            background: var(--surface);
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            width: 100%;
+        }
+
+        .section h3 {
+            font-size: 15px;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .code-display {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            padding: 12px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            word-break: break-all;
+            margin-bottom: 12px;
+            max-height: 100px;
+            overflow-y: auto;
+            color: var(--text);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .chat {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            padding-bottom: 120px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .message {
+            max-width: 70%;
+            padding: 10px 14px;
+            border-radius: 18px;
+            font-size: 16px;
+            line-height: 1.4;
+            margin-bottom: 8px;
+            word-wrap: break-word;
+            animation: fadeIn 0.15s ease;
+            position: relative;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.own {
+            align-self: flex-end;
+            background: var(--own-msg);
+            color: var(--own-text);
+            border-bottom-right-radius: 4px;
+            margin-left: auto;
+        }
+
+        .message.other {
+            align-self: flex-start;
+            background: var(--other-msg);
+            color: var(--other-text);
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.system {
+            align-self: center;
+            background: transparent;
+            color: var(--system);
+            font-size: 13px;
+            font-style: italic;
+            max-width: 90%;
+            text-align: center;
+        }
+
+        .message.disconnect {
+            color: var(--error);
+        }
+
+        .msg-author {
+            font-size: 12px;
+            font-weight: 600;
+            opacity: 0.7;
+            margin-bottom: 2px;
+        }
+
+        .file-box {
+            margin-top: 6px;
+            padding: 12px;
+            background: rgba(0,0,0,0.1);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            max-width: 100%;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .file-box:active {
+            opacity: 0.7;
+        }
+
+        .file-box.sending::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            background: var(--success);
+            transition: width 0.3s;
+        }
+
+        .file-icon {
+            font-size: 28px;
+            flex-shrink: 0;
+        }
+
+        .file-details {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .file-name {
+            font-weight: 500;
+            font-size: 15px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+        }
+
+        .file-meta {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-top: 2px;
+        }
+
+        .transfer-status {
+            font-size: 11px;
+            color: var(--success);
+            margin-top: 4px;
+        }
+
+        .input-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg);
+            border-top: 1px solid var(--border);
+            padding: 12px 16px 24px 16px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .input-container input[type="text"] {
+            flex: 1;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 10px 16px;
+            background: var(--surface);
+            font-size: 16px;
+            outline: none;
+        }
+
+        .input-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: var(--surface);
+            color: var(--text);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            padding: 0;
+            flex-shrink: 0;
+        }
+
+        .input-btn:active {
+            transform: scale(0.95);
+        }
+
+        .input-btn.send {
+            background: var(--accent);
+            color: var(--accent-text);
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal-content {
+            max-width: 100%;
+            max-height: 80%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .modal-content img, .modal-content video {
+            max-width: 100%;
+            max-height: 70vh;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+
+        .modal-info {
+            color: white;
+            margin-top: 16px;
+            text-align: center;
+        }
+
+        .modal-actions {
+            margin-top: 20px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .modal-btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: none;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            background: var(--accent);
+            color: var(--accent-text);
+        }
+
+        .modal-btn.secondary {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 32px;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal {
+            background: var(--bg);
+            border-radius: 12px;
+            padding: 20px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .peer-list {
+            margin-top: 12px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .peer-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--surface);
+            padding: 6px 12px;
+            border-radius: 16px;
+            margin-right: 6px;
+            margin-bottom: 6px;
+            font-size: 13px;
+        }
+
+        .peer-tag::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--success);
+        }
+
+        .error-toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--error);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            z-index: 2000;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from { transform: translate(-50%, -100%); }
+            to { transform: translate(-50%, 0); }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>Direct Chat</h1>
+            <div class="header-controls">
+                <span class="status" id="status">Offline</span>
+                <button class="icon" onclick="toggleTheme()" title="Toggle Theme">☀</button>
+                <button class="icon" id="inviteBtn" onclick="showInvite()" title="Invite" style="display:none;">+</button>
+            </div>
+        </header>
+
+        <div class="setup" id="setupView">
+            <div class="setup-content">
+                <div class="mode-toggle">
+                    <button class="active" onclick="setMode('create')">Create Room</button>
+                    <button onclick="setMode('join')">Join Room</button>
+                </div>
+
+                <div id="createMode">
+                    <div class="form-group">
+                        <label>Your Name</label>
+                        <input type="text" id="createName" placeholder="Enter your name" maxlength="20">
+                    </div>
+                    <button class="btn" onclick="createRoom()">Create Room</button>
+
+                    <div id="hostPanel" class="hidden" style="margin-top: 20px;">
+                        <div class="section">
+                            <h3>Invite Code</h3>
+                            <div class="code-display" id="offerCode">Generating...</div>
+                            <button class="btn secondary" onclick="copyToClipboard('offerCode')">Copy Code</button>
+                        </div>
+                        <div class="section">
+                            <h3>Answer Codes</h3>
+                            <div id="answerList"></div>
+                            <button class="btn secondary" onclick="addAnswerInput()" style="margin-top: 8px;">+ Add Answer</button>
+                            <button class="btn" onclick="enterChat()" style="margin-top: 12px;">Enter Chat</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="joinMode" class="hidden">
+                    <div class="form-group">
+                        <label>Your Name</label>
+                        <input type="text" id="joinName" placeholder="Enter your name" maxlength="20">
+                    </div>
+                    <div class="form-group">
+                        <label>Invite Code</label>
+                        <textarea id="joinOffer" placeholder="Paste invite code here..."></textarea>
+                    </div>
+                    <button class="btn" onclick="joinRoom()">Connect</button>
+
+                    <div id="joinPanel" class="hidden" style="margin-top: 20px;">
+                        <div class="section">
+                            <h3>Your Answer Code</h3>
+                            <div class="code-display" id="answerCode">...</div>
+                            <button class="btn secondary" onclick="copyToClipboard('answerCode')">Copy Code</button>
+                            <button class="btn" onclick="enterChat()" style="margin-top: 12px;">Enter Chat</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat hidden" id="chatView">
+            <div class="messages" id="messages">
+                <div class="message system">Welcome to the chat</div>
+            </div>
+            
+            <div class="input-container" id="inputContainer">
+                <button class="input-btn" onclick="document.getElementById('fileInput').click()" title="Send File">📎</button>
+                <input type="file" id="fileInput" onchange="handleFileSelect(event)" multiple>
+                <input type="text" id="msgInput" placeholder="Type a message..." onkeypress="handleKey(event)" onfocus="handleFocus()">
+                <button class="input-btn send" onclick="sendMsg()" title="Send">→</button>
+            </div>
+        </div>
+
+        <div class="modal-overlay hidden" id="mediaModal" onclick="if(event.target===this)closeMediaModal()">
+            <button class="close-modal" onclick="closeMediaModal()">×</button>
+            <div class="modal-content" id="mediaContent"></div>
+            <div class="modal-info" id="mediaInfo"></div>
+            <div class="modal-actions">
+                <button class="modal-btn" id="mediaDownload" download>Download</button>
+                <button class="modal-btn secondary" onclick="closeMediaModal()">Close</button>
+            </div>
+        </div>
+
+        <div class="modal-overlay hidden" id="inviteModal" onclick="if(event.target===this)hideInvite()">
+            <div class="modal">
+                <button class="close-modal" onclick="hideInvite()" style="position:static; color:var(--text); align-self:flex-end; margin-bottom:10px;">×</button>
+                <h2 style="margin-bottom:16px;">Invite Someone</h2>
+                <div class="section" style="background:var(--surface);">
+                    <h3>New Invite Code</h3>
+                    <div class="code-display" id="newOfferCode">Generate a code to share...</div>
+                    <button class="btn secondary" onclick="generateNewInvite()" style="margin-bottom:8px;">Generate New Code</button>
+                    <button class="btn secondary" onclick="copyToClipboard('newOfferCode')">Copy</button>
+                </div>
+                <div class="section" style="background:var(--surface);">
+                    <h3>Pending Answers</h3>
+                    <div id="lateAnswerList"></div>
+                    <button class="btn secondary" onclick="addLateAnswerInput()">+ Add Answer</button>
+                </div>
+                <div class="peer-list" id="peerListDisplay"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ICE_SERVERS = [{urls: 'stun:stun.l.google.com:19302'}];
+        const MAX_FILE_SIZE = 600 * 1024 * 1024;
+        const CHUNK_SIZE = 8192; // Reduced to 8KB for reliability
+
+        let myName = '';
+        let isHost = false;
+        let connections = new Map();
+        let hostConnectionCounter = 0;
+        let currentMode = 'create';
+        let fileStorage = new Map();
+        let pendingFiles = []; // Queue for files sent before connection
+        let messageQueue = []; // Queue for messages
+
+        // Theme functions
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            event.target.textContent = next === 'dark' ? '☾' : '☀';
+        }
+
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-toggle button').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('createMode').classList.toggle('hidden', mode !== 'create');
+            document.getElementById('joinMode').classList.toggle('hidden', mode !== 'join');
+        }
+
+        function showError(msg) {
+            const toast = document.createElement('div');
+            toast.className = 'error-toast';
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function log(msg, type='system') {
+            console.log(msg);
+            addSystemMessage(msg, type);
+        }
+
+        function addSystemMessage(text, type='normal') {
+            const container = document.getElementById('messages');
+            if (!container) return;
+            const div = document.createElement('div');
+            div.className = 'message system';
+            if (type === 'disconnect') div.classList.add('disconnect');
+            div.textContent = text;
+            container.appendChild(div);
+            scrollToBottom();
+        }
+
+        function updateStatus() {
+            const hasConnection = Array.from(connections.values()).some(c => c.connected);
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = hasConnection ? 'Online' : 'Offline';
+            statusEl.classList.toggle('online', hasConnection);
+            
+            // Send any queued files/messages now that we're connected
+            if (hasConnection) {
+                flushQueues();
+            }
+        }
+
+        function flushQueues() {
+            // Send queued messages
+            while (messageQueue.length > 0) {
+                const msg = messageQueue.shift();
+                broadcast(msg);
+            }
+            
+            // Process pending files
+            while (pendingFiles.length > 0) {
+                const fileData = pendingFiles.shift();
+                broadcastFile(fileData);
+            }
+        }
+
+        // WebRTC Functions
+        async function createRoom() {
+            myName = document.getElementById('createName').value.trim() || 'Host';
+            isHost = true;
+            await generateOffer();
+            document.getElementById('hostPanel').classList.remove('hidden');
+            addAnswerInput();
+        }
+
+        async function generateOffer() {
+            const pc = new RTCPeerConnection({iceServers: ICE_SERVERS});
+            const peerId = 'peer-' + hostConnectionCounter++;
+            
+            const channel = pc.createDataChannel('chat', {ordered: true});
+            setupChannel(channel, peerId);
+            
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            await waitForIce(pc);
+            
+            connections.set(peerId, {
+                pc: pc,
+                channel: channel,
+                name: 'Unknown',
+                connected: false,
+                id: peerId
+            });
+            
+            const code = btoa(JSON.stringify({
+                type: 'offer',
+                sdp: pc.localDescription,
+                host: myName,
+                id: peerId
+            }));
+            
+            document.getElementById('offerCode').textContent = code;
+            return code;
+        }
+
+        async function waitForIce(pc) {
+            return new Promise(resolve => {
+                if (pc.iceGatheringState === 'complete') return resolve();
+                pc.onicegatheringstatechange = () => {
+                    if (pc.iceGatheringState === 'complete') resolve();
+                };
+                setTimeout(resolve, 2000);
+            });
+        }
+
+        function addAnswerInput() {
+            const container = document.getElementById(currentMode === 'create' ? 'answerList' : 'lateAnswerList');
+            const div = document.createElement('div');
+            div.style.marginBottom = '8px';
+            div.innerHTML = `<textarea placeholder="Paste answer code..." rows="2" onchange="processAnswerInput(this)" style="width:100%;"></textarea>`;
+            container.appendChild(div);
+        }
+
+        async function processAnswerInput(textarea) {
+            if (textarea.value.trim()) {
+                await processAnswer(textarea.value.trim());
+                textarea.value = '';
+                updatePeerList();
+            }
+        }
+
+        async function processAnswer(answerCode) {
+            try {
+                const data = JSON.parse(atob(answerCode));
+                const peerId = data.id;
+                
+                let conn = connections.get(peerId);
+                if (!conn) {
+                    const pc = new RTCPeerConnection({iceServers: ICE_SERVERS});
+                    conn = {
+                        pc: pc,
+                        channel: null,
+                        name: data.name || 'Unknown',
+                        connected: false,
+                        id: peerId
+                    };
+                    connections.set(peerId, conn);
+                    
+                    pc.ondatachannel = (e) => {
+                        conn.channel = e.channel;
+                        setupChannel(e.channel, peerId);
+                    };
+                }
+                
+                await conn.pc.setRemoteDescription(data.sdp);
+                log(`Connected to ${data.name || 'peer'}`);
+                updateStatus();
+            } catch (e) {
+                showError('Invalid answer code');
+                console.error(e);
+            }
+        }
+
+        async function joinRoom() {
+            myName = document.getElementById('joinName').value.trim() || 'Guest';
+            const offerCode = document.getElementById('joinOffer').value.trim();
+            if (!offerCode) return alert('Please paste invite code');
+            
+            try {
+                const data = JSON.parse(atob(offerCode));
+                const peerId = data.id || 'host';
+                
+                const pc = new RTCPeerConnection({iceServers: ICE_SERVERS});
+                
+                pc.ondatachannel = (e) => {
+                    const channel = e.channel;
+                    setupChannel(channel, peerId);
+                    connections.set(peerId, {
+                        pc: pc,
+                        channel: channel,
+                        name: data.host || 'Host',
+                        connected: false,
+                        id: peerId
+                    });
+                };
+                
+                await pc.setRemoteDescription(data.sdp);
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                await waitForIce(pc);
+                
+                const answerCode = btoa(JSON.stringify({
+                    type: 'answer',
+                    sdp: pc.localDescription,
+                    name: myName,
+                    id: peerId
+                }));
+                
+                document.getElementById('answerCode').textContent = answerCode;
+                document.getElementById('joinPanel').classList.remove('hidden');
+            } catch (e) {
+                showError('Invalid invite code');
+            }
+        }
+
+        // File reception state
+        let incomingFiles = new Map(); // peerId + fileId -> chunks
+
+        function setupChannel(channel, peerId) {
+            channel.binaryType = 'arraybuffer';
+            let currentFileId = null;
+            let fileBuffer = [];
+            let expectedSize = 0;
+            let receivedSize = 0;
+            
+            channel.onopen = () => {
+                const conn = connections.get(peerId);
+                if (conn) {
+                    conn.connected = true;
+                    conn.channel = channel;
+                }
+                updateStatus();
+                log(`${connections.get(peerId)?.name || 'Someone'} joined`);
+                updatePeerList();
+                
+                // Send announcement
+                try {
+                    channel.send(JSON.stringify({type: 'announce', name: myName}));
+                } catch (e) {
+                    console.error('Failed to announce:', e);
+                }
+            };
+            
+            channel.onclose = () => {
+                const conn = connections.get(peerId);
+                if (conn) {
+                    conn.connected = false;
+                    log(`${conn.name || 'Someone'} left`, 'disconnect');
+                }
+                updateStatus();
+                updatePeerList();
+            };
+            
+            channel.onerror = (e) => {
+                console.error('Channel error:', e);
+                showError('Connection error occurred');
+            };
+            
+            channel.onmessage = (e) => {
+                if (e.data instanceof ArrayBuffer) {
+                    // Handle binary file data
+                    if (currentFileId) {
+                        fileBuffer.push(e.data);
+                        receivedSize += e.data.byteLength;
+                        
+                        if (receivedSize >= expectedSize) {
+                            // File complete
+                            const blob = new Blob(fileBuffer);
+                            const conn = connections.get(peerId);
+                            displayFileMessage({
+                                id: currentFileId,
+                                name: 'Unknown',
+                                type: 'application/octet-stream',
+                                size: expectedSize
+                            }, blob, conn?.name || 'Unknown', false, true);
+                            
+                            // Reset
+                            currentFileId = null;
+                            fileBuffer = [];
+                            expectedSize = 0;
+                            receivedSize = 0;
+                        }
+                    }
+                } else {
+                    try {
+                        const data = JSON.parse(e.data);
+                        
+                        if (data.type === 'chat') {
+                            displayMessage(data.name, data.text, false);
+                        } else if (data.type === 'announce') {
+                            const conn = connections.get(peerId);
+                            if (conn) {
+                                conn.name = data.name;
+                                log(`${data.name} joined`);
+                                updatePeerList();
+                            }
+                        } else if (data.type === 'file-start') {
+                            // New file incoming
+                            currentFileId = data.id;
+                            expectedSize = data.size;
+                            receivedSize = 0;
+                            fileBuffer = [];
+                            
+                            // Store metadata temporarily
+                            incomingFiles.set(data.id, {
+                                name: data.name,
+                                type: data.type,
+                                size: data.size
+                            });
+                        } else if (data.type === 'file-complete') {
+                            // Alternative: metadata sent after binary data
+                            const metadata = incomingFiles.get(data.id);
+                            if (metadata && fileBuffer.length > 0) {
+                                const blob = new Blob(fileBuffer, {type: metadata.type});
+                                const conn = connections.get(peerId);
+                                displayFileMessage(metadata, blob, conn?.name || 'Unknown', false, true);
+                                
+                                // Cleanup
+                                incomingFiles.delete(data.id);
+                                fileBuffer = [];
+                                currentFileId = null;
+                            }
+                        }
+                    } catch (err) {
+                        console.error('Parse error:', err);
+                    }
+                }
+            };
+        }
+
+        // Chat Functions
+        function enterChat() {
+            if (isHost) {
+                const inputs = document.querySelectorAll('#answerList textarea');
+                Promise.all(Array.from(inputs).map(async (input) => {
+                    if (input.value.trim()) {
+                        await processAnswer(input.value.trim());
+                        input.value = '';
+                    }
+                })).then(() => {
+                    showChat();
+                });
+            } else {
+                showChat();
+            }
+        }
+
+        function showChat() {
+            document.getElementById('setupView').classList.add('hidden');
+            document.getElementById('chatView').classList.remove('hidden');
+            document.getElementById('inviteBtn').style.display = 'block';
+            log('Chat started');
+        }
+
+        function displayMessage(name, text, isOwn) {
+            const container = document.getElementById('messages');
+            const div = document.createElement('div');
+            div.className = 'message ' + (isOwn ? 'own' : 'other');
+            if (!isOwn) div.innerHTML = `<div class="msg-author">${escapeHtml(name)}</div>`;
+            div.innerHTML += escapeHtml(text);
+            container.appendChild(div);
+            scrollToBottom();
+        }
+
+        let fileCounter = 0;
+
+        function displayFileMessage(metadata, blob, name, isOwn, isRemote = false) {
+            const container = document.getElementById('messages');
+            const div = document.createElement('div');
+            div.className = 'message ' + (isOwn ? 'own' : 'other');
+            if (!isOwn) div.innerHTML = `<div class="msg-author">${escapeHtml(name)}</div>`;
+            
+            const fileId = 'file-' + Date.now() + '-' + (fileCounter++);
+            fileStorage.set(fileId, {blob, metadata});
+            
+            // Determine icon
+            let icon = '📎';
+            const fileName = metadata.name.toLowerCase();
+            if (metadata.type?.startsWith('image/') || fileName.match(/\.(jpg|jpeg|png|gif|webp|bmp)$/)) icon = '🖼️';
+            else if (metadata.type?.startsWith('video/') || fileName.match(/\.(mp4|mov|avi|mkv)$/)) icon = '🎬';
+            else if (metadata.type?.startsWith('audio/') || fileName.match(/\.(mp3|wav|flac|aac)$/)) icon = '🎵';
+            else if (fileName.match(/\.(exe|dmg|pkg|deb|rpm|msi|bat|sh|apk)$/)) icon = '⚙️';
+            else if (fileName.match(/\.(pdf|doc|docx|txt|rtf)$/)) icon = '📄';
+            else if (fileName.match(/\.(zip|rar|7z|tar|gz)$/)) icon = '📦';
+            
+            const isExecutable = fileName.match(/\.(exe|dmg|pkg|deb|rpm|msi|bat|sh|apk)$/i);
+            const action = isExecutable ? 'Install' : (icon === '🖼️' || icon === '🎬') ? 'View' : 'Download';
+            
+            div.innerHTML += `
+                <div class="file-box" onclick="handleFileClick('${fileId}')" id="box-${fileId}">
+                    <span class="file-icon">${icon}</span>
+                    <div class="file-details">
+                        <span class="file-name">${escapeHtml(metadata.name)}</span>
+                        <span class="file-meta">${formatFileSize(metadata.size)} • Tap to ${action}</span>
+                        ${!isRemote ? '<span class="transfer-status" id="status-' + fileId + '">Sending...</span>' : ''}
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(div);
+            scrollToBottom();
+            
+            // If it's our file and we have connections, mark as sent when done
+            if (!isRemote) {
+                updateFileStatus(fileId, 'Sent');
+            }
+            
+            return fileId;
+        }
+
+        function updateFileStatus(fileId, status) {
+            const el = document.getElementById('status-' + fileId);
+            if (el) {
+                el.textContent = status;
+                el.style.color = 'var(--success)';
+                setTimeout(() => el.remove(), 2000);
+            }
+        }
+
+        function handleFileClick(fileId) {
+            const fileData = fileStorage.get(fileId);
+            if (!fileData) {
+                showError('File no longer available');
+                return;
+            }
+            
+            const {blob, metadata} = fileData;
+            const fileName = metadata.name.toLowerCase();
+            const isImage = metadata.type?.startsWith('image/') || fileName.match(/\.(jpg|jpeg|png|gif|webp|bmp)$/);
+            const isVideo = metadata.type?.startsWith('video/') || fileName.match(/\.(mp4|mov|avi|mkv)$/);
+            const isExecutable = fileName.match(/\.(exe|dmg|pkg|deb|rpm|msi|bat|sh|apk)$/i);
+            
+            if (isImage || isVideo) {
+                showMediaModal(blob, metadata);
+            } else {
+                // Download/Install
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = metadata.name;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                if (isExecutable) {
+                    log('Downloaded: ' + metadata.name);
+                    showError('Run the downloaded file to install');
+                }
+            }
+        }
+
+        function showMediaModal(blob, metadata) {
+            const modal = document.getElementById('mediaModal');
+            const content = document.getElementById('mediaContent');
+            const info = document.getElementById('mediaInfo');
+            const downloadBtn = document.getElementById('mediaDownload');
+            
+            const url = URL.createObjectURL(blob);
+            
+            if (metadata.type?.startsWith('image/')) {
+                content.innerHTML = `<img src="${url}" alt="${escapeHtml(metadata.name)}" style="max-height: 60vh;">`;
+            } else if (metadata.type?.startsWith('video/')) {
+                content.innerHTML = `<video src="${url}" controls style="max-height: 60vh;"></video>`;
+            }
+            
+            info.innerHTML = `<strong>${escapeHtml(metadata.name)}</strong><br>${formatFileSize(metadata.size)}`;
+            downloadBtn.href = url;
+            downloadBtn.download = metadata.name;
+            
+            modal.classList.remove('hidden');
+        }
+
+        function closeMediaModal() {
+            document.getElementById('mediaModal').classList.add('hidden');
+        }
+
+        function sendMsg() {
+            const input = document.getElementById('msgInput');
+            const text = input.value.trim();
+            if (!text) return;
+            
+            displayMessage(myName, text, true);
+            input.value = '';
+            
+            const data = {type: 'chat', name: myName, text: text};
+            
+            // Check if we have open connections
+            const hasOpen = Array.from(connections.values()).some(c => c.connected);
+            if (hasOpen) {
+                broadcast(data);
+            } else {
+                messageQueue.push(data);
+                addSystemMessage('Message queued (waiting for peers)...');
+            }
+        }
+
+        function broadcast(data) {
+            const msg = JSON.stringify(data);
+            let sent = false;
+            connections.forEach(conn => {
+                if (conn.channel?.readyState === 'open') {
+                    try {
+                        conn.channel.send(msg);
+                        sent = true;
+                    } catch (e) {
+                        console.error('Send failed to', conn.id, e);
+                    }
+                }
+            });
+            return sent;
+        }
+
+        // File Handling - Fixed Version
+        async function handleFileSelect(event) {
+            const files = Array.from(event.target.files);
+            event.target.value = '';
+            
+            const hasConnections = Array.from(connections.values()).some(c => c.connected);
+            
+            for (const file of files) {
+                if (file.size > MAX_FILE_SIZE) {
+                    showError(`${file.name} too large (max 600MB)`);
+                    continue;
+                }
+                
+                // Show locally immediately
+                const buffer = await file.arrayBuffer();
+                const blob = new Blob([buffer], {type: file.type});
+                const fileId = displayFileMessage({
+                    name: file.name,
+                    type: file.type,
+                    size: file.size
+                }, blob, myName, true, false);
+                
+                if (hasConnections) {
+                    // Send immediately
+                    await sendFileToAll(file, buffer, fileId);
+                } else {
+                    // Queue for later
+                    pendingFiles.push({file, buffer, fileId});
+                    updateFileStatus(fileId, 'Waiting for peers...');
+                    addSystemMessage('File queued - will send when peers connect');
+                }
+            }
+        }
+
+        async function sendFileToAll(file, buffer, localFileId) {
+            const fileId = 'file-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+            
+            // Send metadata first
+            const metadata = {
+                type: 'file-start',
+                id: fileId,
+                name: file.name,
+                size: file.size,
+                mimeType: file.type
+            };
+            
+            // Send to all connected peers
+            const peers = Array.from(connections.values()).filter(c => c.connected);
+            if (peers.length === 0) {
+                updateFileStatus(localFileId, 'Failed - no peers');
+                return;
+            }
+            
+            // Send metadata
+            broadcast(metadata);
+            
+            // Small delay to ensure metadata arrives first
+            await new Promise(r => setTimeout(r, 100));
+            
+            // Send chunks
+            let offset = 0;
+            const totalChunks = Math.ceil(buffer.byteLength / CHUNK_SIZE);
+            let chunksSent = 0;
+            
+            while (offset < buffer.byteLength) {
+                const chunk = buffer.slice(offset, Math.min(offset + CHUNK_SIZE, buffer.byteLength));
+                
+                // Send to all peers
+                peers.forEach(conn => {
+                    if (conn.channel?.readyState === 'open') {
+                        try {
+                            conn.channel.send(chunk);
+                        } catch (e) {
+                            console.error('Chunk send failed:', e);
+                        }
+                    }
+                });
+                
+                offset += CHUNK_SIZE;
+                chunksSent++;
+                
+                // Update progress every 10%
+                if (chunksSent % Math.max(1, Math.floor(totalChunks / 10)) === 0) {
+                    const progress = Math.round((chunksSent / totalChunks) * 100);
+                    updateFileStatus(localFileId, `Sending ${progress}%`);
+                }
+                
+                // Yield to prevent blocking
+                if (chunksSent % 10 === 0) {
+                    await new Promise(r => setTimeout(r, 0));
+                }
+            }
+            
+            // Signal completion
+            await new Promise(r => setTimeout(r, 100));
+            broadcast({
+                type: 'file-complete',
+                id: fileId
+            });
+            
+            updateFileStatus(localFileId, 'Sent');
+        }
+
+        function broadcastFile(fileData) {
+            sendFileToAll(fileData.file, fileData.buffer, fileData.fileId);
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function handleKey(e) {
+            if (e.key === 'Enter') sendMsg();
+        }
+
+        function handleFocus() {
+            setTimeout(scrollToBottom, 300);
+        }
+
+        function scrollToBottom() {
+            const container = document.getElementById('messages');
+            if (container) container.scrollTop = container.scrollHeight;
+        }
+
+        function generateId() {
+            return Math.random().toString(36).substr(2, 9);
+        }
+
+        function showInvite() {
+            document.getElementById('inviteModal').classList.remove('hidden');
+            updatePeerList();
+        }
+
+        function hideInvite() {
+            document.getElementById('inviteModal').classList.add('hidden');
+        }
+
+        async function generateNewInvite() {
+            const code = await generateOffer();
+            document.getElementById('newOfferCode').textContent = code;
+        }
+
+        function addLateAnswerInput() {
+            const container = document.getElementById('lateAnswerList');
+            const div = document.createElement('div');
+            div.style.marginBottom = '8px';
+            div.innerHTML = `<textarea placeholder="Paste answer code..." rows="2" onchange="processAnswerInput(this)" style="width:100%;"></textarea>`;
+            container.appendChild(div);
+        }
+
+        function updatePeerList() {
+            const list = document.getElementById('peerListDisplay');
+            const connected = Array.from(connections.values()).filter(c => c.connected);
+            list.innerHTML = connected.length === 0 ? '<strong>Connected:</strong> No peers' : 
+                '<strong>Connected:</strong> ' + connected.map(c => `<span class="peer-tag">${c.name}</span>`).join('');
+        }
+
+        function copyToClipboard(elementId) {
+            const el = document.getElementById(elementId);
+            navigator.clipboard.writeText(el.textContent).then(() => {
+                const btn = event.target;
+                const original = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = original, 1500);
+            }).catch(() => {
+                // Fallback
+                const range = document.createRange();
+                range.selectNode(el);
+                window.getSelection().removeAllRanges();
+                window.getSelection().addRange(range);
+                document.execCommand('copy');
+                window.getSelection().removeAllRanges();
+            });
+        }
+    </script>
+</body>
+</html>
