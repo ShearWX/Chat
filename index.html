@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P Chat</title>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --surface: #f5f5f5;
+            --text: #111111;
+            --text-secondary: #666666;
+            --border: #e0e0e0;
+            --accent: #0066cc;
+            --accent-text: #ffffff;
+            --own-msg: #0066cc;
+            --own-text: #ffffff;
+            --other-msg: #e9e9e9;
+            --other-text: #111111;
+            --system: #888888;
+        }
+
+        [data-theme="dark"] {
+            --bg: #1a1a1a;
+            --surface: #2a2a2a;
+            --text: #e0e0e0;
+            --text-secondary: #888888;
+            --border: #404040;
+            --accent: #4a9eff;
+            --accent-text: #000000;
+            --own-msg: #4a9eff;
+            --own-text: #000000;
+            --other-msg: #333333;
+            --other-text: #e0e0e0;
+            --system: #666666;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        #app {
+            max-width: 800px;
+            margin: 0 auto;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid var(--border);
+            border-right: 1px solid var(--border);
+        }
+
+        /* Header */
+        header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg);
+        }
+
+        h1 {
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .status {
+            font-size: 13px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #ff4444;
+        }
+
+        .status.online::before {
+            background: #00c853;
+        }
+
+        button.icon {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 6px;
+            color: var(--text-secondary);
+            font-size: 18px;
+            line-height: 1;
+        }
+
+        button.icon:hover {
+            background: var(--surface);
+            color: var(--text);
+        }
+
+        input, button {
+            font-family: inherit;
+        }
+
+        /* Setup Screen */
+        .setup {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 40px 20px;
+            overflow-y: auto;
+        }
+
+        .mode-toggle {
+            display: flex;
+            gap: 0;
+            margin-bottom: 24px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            overflow: hidden;
+            width: fit-content;
+        }
+
+        .mode-toggle button {
+            padding: 8px 16px;
+            background: var(--bg);
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .mode-toggle button.active {
+            background: var(--surface);
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg);
+            color: var(--text);
+            font-size: 15px;
+            outline: none;
+        }
+
+        input[type="text"]:focus, textarea:focus {
+            border-color: var(--accent);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            background: var(--accent);
+            color: var(--accent-text);
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .btn.secondary {
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .section {
+            background: var(--surface);
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .section h3 {
+            font-size: 14px;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .code-display {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            padding: 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            word-break: break-all;
+            margin-bottom: 8px;
+            position: relative;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Chat Screen */
+        .chat {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 15px;
+            line-height: 1.4;
+            animation: fadeIn 0.15s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.own {
+            align-self: flex-end;
+            background: var(--own-msg);
+            color: var(--own-text);
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.other {
+            align-self: flex-start;
+            background: var(--other-msg);
+            color: var(--other-text);
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.system {
+            align-self: center;
+            background: transparent;
+            color: var(--system);
+            font-size: 13px;
+            font-style: italic;
+        }
+
+        .msg-author {
+            font-size: 12px;
+            font-weight: 600;
+            opacity: 0.7;
+            margin-bottom: 2px;
+        }
+
+        .input-area {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 8px;
+            background: var(--bg);
+        }
+
+        .input-area input {
+            flex: 1;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 10px 16px;
+            background: var(--surface);
+        }
+
+        .input-area button {
+            padding: 10px 20px;
+            border-radius: 20px;
+            width: auto;
+        }
+
+        /* Invite Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .modal {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal h2 {
+            font-size: 18px;
+            margin-bottom: 16px;
+        }
+
+        .close-btn {
+            float: right;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            padding: 0;
+            width: auto;
+        }
+
+        .peer-list {
+            margin-top: 12px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .peer-tag {
+            display: inline-block;
+            background: var(--surface);
+            padding: 4px 10px;
+            border-radius: 12px;
+            margin-right: 6px;
+            margin-bottom: 6px;
+            border: 1px solid var(--border);
+        }
+    </style>
+<base target="_blank">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>Direct Chat</h1>
+            <div class="header-controls">
+                <span class="status" id="status">Offline</span>
+                <button class="icon" onclick="toggleTheme()" title="Toggle Theme">○</button>
+                <button class="icon" id="inviteBtn" onclick="showInvite()" title="Invite" style="display:none;">+</button>
+            </div>
+        </header>
+
+        <!-- Setup View -->
+        <div class="setup" id="setupView">
+            <div class="mode-toggle">
+                <button class="active" onclick="setMode('create')">Create Room</button>
+                <button onclick="setMode('join')">Join Room</button>
+            </div>
+
+            <!-- Create Mode -->
+            <div id="createMode">
+                <div class="form-group">
+                    <label>Your Name</label>
+                    <input type="text" id="createName" placeholder="Enter your name" maxlength="20">
+                </div>
+                
+                <button class="btn" onclick="createRoom()">Create Room</button>
+
+                <div id="hostPanel" class="hidden" style="margin-top: 24px;">
+                    <div class="section">
+                        <h3>Invite Code</h3>
+                        <div class="code-display" id="offerCode">Generating...</div>
+                        <button class="btn secondary" onclick="copyToClipboard('offerCode')">Copy Code</button>
+                    </div>
+
+                    <div class="section">
+                        <h3>Answer Codes</h3>
+                        <div id="answerList"></div>
+                        <button class="btn secondary" onclick="addAnswerInput()" style="margin-top: 8px;">+ Add Answer</button>
+                        <button class="btn" onclick="enterChat()" style="margin-top: 12px;">Enter Chat</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Join Mode -->
+            <div id="joinMode" class="hidden">
+                <div class="form-group">
+                    <label>Your Name</label>
+                    <input type="text" id="joinName" placeholder="Enter your name" maxlength="20">
+                </div>
+                
+                <div class="form-group">
+                    <label>Invite Code</label>
+                    <textarea id="joinOffer" placeholder="Paste invite code here..."></textarea>
+                </div>
+                
+                <button class="btn" onclick="joinRoom()">Connect</button>
+
+                <div id="joinPanel" class="hidden" style="margin-top: 24px;">
+                    <div class="section">
+                        <h3>Your Answer Code</h3>
+                        <div class="code-display" id="answerCode">...</div>
+                        <button class="btn secondary" onclick="copyToClipboard('answerCode')">Copy Code</button>
+                        <p style="margin-top: 8px; font-size: 13px; color: var(--text-secondary);">
+                            Send this back to the host
+                        </p>
+                        <button class="btn" onclick="enterChat()" style="margin-top: 12px;">Enter Chat</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat View -->
+        <div class="chat hidden" id="chatView">
+            <div class="messages" id="messages">
+                <div class="message system">Welcome to the chat</div>
+            </div>
+            
+            <div class="input-area">
+                <input type="text" id="msgInput" placeholder="Type a message..." onkeypress="handleKey(event)">
+                <button class="btn" onclick="sendMsg()">Send</button>
+            </div>
+        </div>
+
+        <!-- Invite Modal (accessible from chat) -->
+        <div class="modal-overlay hidden" id="inviteModal" onclick="if(event.target===this)hideInvite()">
+            <div class="modal">
+                <button class="close-btn" onclick="hideInvite()">×</button>
+                <h2>Invite Someone</h2>
+                
+                <div class="section" style="margin-top: 16px;">
+                    <h3>New Invite Code</h3>
+                    <div class="code-display" id="newOfferCode">Generate a code to share...</div>
+                    <button class="btn secondary" onclick="generateNewInvite()">Generate New Code</button>
+                    <button class="btn secondary" onclick="copyToClipboard('newOfferCode')">Copy</button>
+                </div>
+
+                <div class="section">
+                    <h3>Pending Answers</h3>
+                    <div id="lateAnswerList"></div>
+                    <button class="btn secondary" onclick="addLateAnswerInput()">+ Add Answer</button>
+                </div>
+
+                <div class="peer-list" id="peerListDisplay"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Config
+        const ICE_SERVERS = [{urls: 'stun:stun.l.google.com:19302'}];
+        
+        // State
+        let myName = '';
+        let isHost = false;
+        let connections = new Map(); // id -> {pc, channel, name, connected}
+        let messageQueue = [];
+        let currentMode = 'create';
+        let hostConnectionCounter = 0;
+
+        // Theme
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme');
+            document.documentElement.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+            localStorage.setItem('theme', current === 'dark' ? 'light' : 'dark');
+        }
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+
+        // Setup UI
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-toggle button').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            if (mode === 'create') {
+                document.getElementById('createMode').classList.remove('hidden');
+                document.getElementById('joinMode').classList.add('hidden');
+            } else {
+                document.getElementById('createMode').classList.add('hidden');
+                document.getElementById('joinMode').classList.remove('hidden');
+            }
+        }
+
+        // WebRTC Core
+        function generateId() {
+            return Math.random().toString(36).substr(2, 9);
+        }
+
+        function log(msg) {
+            console.log(msg);
+            addSystemMessage(msg);
+        }
+
+        function addSystemMessage(text) {
+            const div = document.createElement('div');
+            div.className = 'message system';
+            div.textContent = text;
+            const container = document.getElementById('messages');
+            if (container) {
+                container.appendChild(div);
+                container.scrollTop = container.scrollHeight;
+            }
+        }
+
+        function updateStatus() {
+            const hasConnection = Array.from(connections.values()).some(c => c.connected);
+            const statusEl = document.getElementById('status');
+            if (hasConnection) {
+                statusEl.textContent = 'Online';
+                statusEl.classList.add('online');
+            } else {
+                statusEl.textContent = 'Offline';
+                statusEl.classList.remove('online');
+            }
+        }
+
+        // Host: Create Room
+        async function createRoom() {
+            myName = document.getElementById('createName').value.trim() || 'Host';
+            isHost = true;
+            
+            // Generate first offer
+            await generateOffer();
+            
+            document.getElementById('hostPanel').classList.remove('hidden');
+            addAnswerInput();
+        }
+
+        async function generateOffer() {
+            const pc = new RTCPeerConnection({iceServers: ICE_SERVERS});
+            const peerId = 'peer-' + hostConnectionCounter++;
+            
+            // Create data channel
+            const channel = pc.createDataChannel('chat', {ordered: true});
+            setupChannel(channel, peerId);
+            
+            // Create offer
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            await waitForIce(pc);
+            
+            // Store connection (not yet connected)
+            connections.set(peerId, {
+                pc: pc,
+                channel: channel,
+                name: 'Unknown',
+                connected: false,
+                offer: pc.localDescription
+            });
+            
+            // Display code
+            const code = btoa(JSON.stringify({
+                type: 'offer',
+                sdp: pc.localDescription,
+                host: myName,
+                id: peerId
+            }));
+            
+            document.getElementById('offerCode').textContent = code;
+            return code;
+        }
+
+        async function waitForIce(pc) {
+            return new Promise(resolve => {
+                if (pc.iceGatheringState === 'complete') return resolve();
+                pc.onicegatheringstatechange = () => {
+                    if (pc.iceGatheringState === 'complete') resolve();
+                };
+                setTimeout(resolve, 2000);
+            });
+        }
+
+        function addAnswerInput() {
+            const container = document.getElementById('answerList');
+            const div = document.createElement('div');
+            div.style.marginBottom = '8px';
+            div.innerHTML = `<textarea placeholder="Paste answer code here..." class="answer-input" rows="2"></textarea>`;
+            container.appendChild(div);
+        }
+
+        async function enterChat() {
+            // Process all answer inputs
+            const inputs = document.querySelectorAll('.answer-input');
+            for (let input of inputs) {
+                if (input.value.trim()) {
+                    await processAnswer(input.value.trim());
+                    input.value = ''; // Clear processed
+                }
+            }
+            
+            document.getElementById('setupView').classList.add('hidden');
+            document.getElementById('chatView').classList.remove('hidden');
+            document.getElementById('inviteBtn').style.display = 'block';
+            
+            log('Chat started. Share invite codes to let others join.');
+        }
+
+        async function processAnswer(answerCode) {
+            try {
+                const data = JSON.parse(atob(answerCode));
+                const peerId = data.id || 'peer-' + Date.now();
+                
+                // Find pending connection or create new if late join
+                let conn = connections.get(peerId);
+                if (!conn) {
+                    // Late join handling - create new connection slot
+                    const pc = new RTCPeerConnection({iceServers: ICE_SERVERS});
+                    conn = {
+                        pc: pc,
+                        channel: null,
+                        name: data.name || 'Unknown',
+                        connected: false
+                    };
+                    connections.set(peerId, conn);
+                    
+                    pc.ondatachannel = (e) => {
+                        conn.channel = e.channel;
+                        setupChannel(e.channel, peerId);
+                    };
+                }
+                
+                await conn.pc.setRemoteDescription(data.sdp);
+                log(`Connected to ${data.name || 'peer'}`);
+                updateStatus();
+                
+            } catch (e) {
+                log('Invalid answer code');
+                console.error(e);
+            }
+        }
+
+        // Join: Connect to Host
+        async function joinRoom() {
+            myName = document.getElementById('joinName').value.trim() || 'Guest';
+            const offerCode = document.getElementById('joinOffer').value.trim();
+            
+            if (!offerCode) return alert('Please paste an invite code');
+            
+            try {
+                const data = JSON.parse(atob(offerCode));
+                const peerId = data.id || 'host';
+                
+                const pc = new RTCPeerConnection({iceServers: ICE_SERVERS});
+                
+                pc.ondatachannel = (e) => {
+                    const channel = e.channel;
+                    setupChannel(channel, peerId);
+                    
+                    connections.set(peerId, {
+                        pc: pc,
+                        channel: channel,
+                        name: data.host || 'Host',
+                        connected: false
+                    });
+                };
+                
+                await pc.setRemoteDescription(data.sdp);
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                await waitForIce(pc);
+                
+                const answerCode = btoa(JSON.stringify({
+                    type: 'answer',
+                    sdp: pc.localDescription,
+                    name: myName,
+                    id: peerId
+                }));
+                
+                document.getElementById('answerCode').textContent = answerCode;
+                document.getElementById('joinPanel').classList.remove('hidden');
+                
+            } catch (e) {
+                alert('Invalid invite code');
+                console.error(e);
+            }
+        }
+
+        function setupChannel(channel, peerId) {
+            channel.onopen = () => {
+                connections.get(peerId).connected = true;
+                updateStatus();
+                log('Someone connected');
+                
+                // Send announcement
+                channel.send(JSON.stringify({
+                    type: 'announce',
+                    name: myName
+                }));
+                
+                // Flush queue
+                messageQueue.forEach(msg => channel.send(JSON.stringify(msg)));
+                messageQueue = [];
+            };
+            
+            channel.onmessage = (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+                    if (data.type === 'chat') {
+                        displayMessage(data.name, data.text, false);
+                    } else if (data.type === 'announce') {
+                        connections.get(peerId).name = data.name;
+                        log(data.name + ' joined');
+                        updatePeerList();
+                    }
+                } catch (err) {
+                    console.error('Bad message:', err);
+                }
+            };
+            
+            channel.onclose = () => {
+                connections.get(peerId).connected = false;
+                updateStatus();
+                log('Someone disconnected');
+            };
+        }
+
+        // Chat Functions
+        function displayMessage(name, text, isOwn) {
+            const container = document.getElementById('messages');
+            const div = document.createElement('div');
+            div.className = 'message ' + (isOwn ? 'own' : 'other');
+            
+            if (!isOwn) {
+                div.innerHTML = `<div class="msg-author">${escapeHtml(name)}</div>`;
+            }
+            div.innerHTML += escapeHtml(text);
+            
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function sendMsg() {
+            const input = document.getElementById('msgInput');
+            const text = input.value.trim();
+            if (!text) return;
+            
+            displayMessage(myName, text, true);
+            input.value = '';
+            
+            const payload = {
+                type: 'chat',
+                name: myName,
+                text: text
+            };
+            
+            // Try to send to all connected peers
+            let sent = false;
+            connections.forEach((conn, id) => {
+                if (conn.channel && conn.channel.readyState === 'open') {
+                    conn.channel.send(JSON.stringify(payload));
+                    sent = true;
+                }
+            });
+            
+            if (!sent) {
+                messageQueue.push(payload);
+                addSystemMessage('Message queued (waiting for peers)');
+            }
+        }
+
+        function handleKey(e) {
+            if (e.key === 'Enter') sendMsg();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Late Join / Invite System
+        function showInvite() {
+            document.getElementById('inviteModal').classList.remove('hidden');
+            updatePeerList();
+        }
+
+        function hideInvite() {
+            document.getElementById('inviteModal').classList.add('hidden');
+        }
+
+        async function generateNewInvite() {
+            const code = await generateOffer();
+            document.getElementById('newOfferCode').textContent = code;
+        }
+
+        function addLateAnswerInput() {
+            const container = document.getElementById('lateAnswerList');
+            const div = document.createElement('div');
+            div.style.marginBottom = '8px';
+            div.innerHTML = `<textarea placeholder="Paste answer code..." rows="2" onchange="processLateAnswer(this)"></textarea>`;
+            container.appendChild(div);
+        }
+
+        async function processLateAnswer(textarea) {
+            if (textarea.value.trim()) {
+                await processAnswer(textarea.value.trim());
+                textarea.value = '';
+                updatePeerList();
+            }
+        }
+
+        function updatePeerList() {
+            const list = document.getElementById('peerListDisplay');
+            const peers = Array.from(connections.values())
+                .filter(c => c.connected)
+                .map(c => c.name);
+            
+            if (peers.length === 0) {
+                list.innerHTML = 'No peers connected';
+            } else {
+                list.innerHTML = '<strong>Connected:</strong> ' + peers.join(', ');
+            }
+        }
+
+        // Utilities
+        function copyToClipboard(elementId) {
+            const el = document.getElementById(elementId);
+            navigator.clipboard.writeText(el.textContent).then(() => {
+                const btn = event.target;
+                const old = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = old, 1500);
+            });
+        }
+    </script>
+</body>
+</html>
