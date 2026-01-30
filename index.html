@@ -3,7 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>P2P Chat</title>
+    <title>Direct Chat</title>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        
+        // YOUR FIREBASE CONFIG
+        const firebaseConfig = {
+            apiKey: "AIzaSyBf-YHCLfEKM10oPCi7YYHgK_BSUuo4_H8",
+            authDomain: "chat-thing-12cf2.firebaseapp.com",
+            projectId: "chat-thing-12cf2",
+            storageBucket: "chat-thing-12cf2.firebasestorage.app",
+            messagingSenderId: "187952478194",
+            appId: "1:187952478194:web:b695f57bd9e5818b4d1d6b",
+            measurementId: "G-49LFGZG3Y0"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        
+        window.db = db;
+        window.firestore = { doc, setDoc, getDoc, onSnapshot, deleteDoc };
+    </script>
     <style>
         :root {
             --bg: #ffffff;
@@ -81,6 +102,13 @@
             font-weight: 600;
         }
 
+        .room-code-display {
+            font-family: monospace;
+            font-size: 14px;
+            color: var(--accent);
+            font-weight: 600;
+        }
+
         .header-controls {
             display: flex;
             gap: 8px;
@@ -124,11 +152,6 @@
             min-height: 36px;
         }
 
-        button.icon:active {
-            transform: scale(0.95);
-            background: var(--surface);
-        }
-
         input, button {
             font-family: inherit;
             font-size: 16px;
@@ -147,6 +170,16 @@
         .setup-content {
             width: 100%;
             max-width: 400px;
+            text-align: center;
+        }
+
+        .big-code {
+            font-size: 48px;
+            font-family: monospace;
+            font-weight: 700;
+            letter-spacing: 8px;
+            color: var(--accent);
+            margin: 20px 0;
         }
 
         .mode-toggle {
@@ -161,7 +194,7 @@
 
         .mode-toggle button {
             flex: 1;
-            padding: 10px;
+            padding: 12px;
             background: var(--bg);
             border: none;
             cursor: pointer;
@@ -172,22 +205,25 @@
         .mode-toggle button.active {
             background: var(--surface);
             color: var(--text);
-            font-weight: 500;
+            font-weight: 600;
         }
 
         .form-group {
-            margin-bottom: 16px;
+            margin-bottom: 20px;
+            text-align: left;
         }
 
         label {
             display: block;
             font-size: 13px;
-            font-weight: 400;
-            margin-bottom: 6px;
+            font-weight: 500;
+            margin-bottom: 8px;
             color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        input[type="text"], textarea {
+        input[type="text"] {
             width: 100%;
             padding: 12px;
             border: 1px solid var(--border);
@@ -196,26 +232,24 @@
             color: var(--text);
             font-size: 16px;
             outline: none;
+            text-align: center;
         }
 
-        textarea {
-            resize: vertical;
-            min-height: 80px;
-            font-family: monospace;
-            font-size: 13px;
+        input[type="text"]:focus {
+            border-color: var(--accent);
         }
 
         .btn {
-            padding: 12px;
+            padding: 14px;
             background: var(--accent);
             color: var(--accent-text);
             border: none;
             border-radius: 8px;
             font-size: 17px;
-            font-weight: 500;
+            font-weight: 600;
             cursor: pointer;
             width: 100%;
-            touch-action: manipulation;
+            transition: opacity 0.2s;
         }
 
         .btn:hover {
@@ -233,32 +267,10 @@
             cursor: not-allowed;
         }
 
-        .section {
-            background: var(--surface);
-            padding: 16px;
-            border-radius: 12px;
-            margin-bottom: 16px;
-            width: 100%;
-        }
-
-        .section h3 {
+        .waiting-text {
+            color: var(--text-secondary);
             font-size: 15px;
-            margin-bottom: 12px;
-            font-weight: 600;
-        }
-
-        .code-display {
-            background: var(--bg);
-            border: 1px solid var(--border);
-            padding: 12px;
-            border-radius: 8px;
-            font-family: monospace;
-            font-size: 12px;
-            word-break: break-all;
-            margin-bottom: 12px;
-            max-height: 100px;
-            overflow-y: auto;
-            color: var(--text);
+            margin-top: 12px;
         }
 
         .hidden {
@@ -270,7 +282,6 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            position: relative;
         }
 
         .messages {
@@ -284,7 +295,7 @@
         }
 
         .message {
-            max-width: 70%;
+            max-width: 75%;
             padding: 10px 14px;
             border-radius: 18px;
             font-size: 16px;
@@ -292,7 +303,6 @@
             margin-bottom: 8px;
             word-wrap: break-word;
             animation: fadeIn 0.15s ease;
-            position: relative;
         }
 
         @keyframes fadeIn {
@@ -321,12 +331,7 @@
             color: var(--system);
             font-size: 13px;
             font-style: italic;
-            max-width: 90%;
             text-align: center;
-        }
-
-        .message.disconnect {
-            color: var(--error);
         }
 
         .msg-author {
@@ -345,29 +350,11 @@
             align-items: center;
             gap: 12px;
             cursor: pointer;
-            transition: opacity 0.2s;
             max-width: 100%;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .file-box:active {
-            opacity: 0.7;
-        }
-
-        .file-box.sending::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            height: 3px;
-            background: var(--success);
-            transition: width 0.3s;
         }
 
         .file-icon {
             font-size: 28px;
-            flex-shrink: 0;
         }
 
         .file-details {
@@ -391,12 +378,6 @@
             margin-top: 2px;
         }
 
-        .transfer-status {
-            font-size: 11px;
-            color: var(--success);
-            margin-top: 4px;
-        }
-
         .input-container {
             position: fixed;
             bottom: 0;
@@ -408,7 +389,6 @@
             display: flex;
             gap: 8px;
             align-items: center;
-            z-index: 100;
         }
 
         .input-container input[type="text"] {
@@ -417,8 +397,7 @@
             border-radius: 20px;
             padding: 10px 16px;
             background: var(--surface);
-            font-size: 16px;
-            outline: none;
+            text-align: left;
         }
 
         .input-btn {
@@ -435,10 +414,6 @@
             font-size: 20px;
             padding: 0;
             flex-shrink: 0;
-        }
-
-        .input-btn:active {
-            transform: scale(0.95);
         }
 
         .input-btn.send {
@@ -465,25 +440,10 @@
             padding: 20px;
         }
 
-        .modal-content {
-            max-width: 100%;
-            max-height: 80%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
         .modal-content img, .modal-content video {
             max-width: 100%;
             max-height: 70vh;
-            object-fit: contain;
             border-radius: 8px;
-        }
-
-        .modal-info {
-            color: white;
-            margin-top: 16px;
-            text-align: center;
         }
 
         .modal-actions {
@@ -503,11 +463,6 @@
             color: var(--accent-text);
         }
 
-        .modal-btn.secondary {
-            background: rgba(255,255,255,0.2);
-            color: white;
-        }
-
         .close-modal {
             position: absolute;
             top: 20px;
@@ -517,47 +472,6 @@
             color: white;
             font-size: 32px;
             cursor: pointer;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal {
-            background: var(--bg);
-            border-radius: 12px;
-            padding: 20px;
-            width: 90%;
-            max-width: 500px;
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-
-        .peer-list {
-            margin-top: 12px;
-            font-size: 13px;
-            color: var(--text-secondary);
-        }
-
-        .peer-tag {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: var(--surface);
-            padding: 6px 12px;
-            border-radius: 16px;
-            margin-right: 6px;
-            margin-bottom: 6px;
-            font-size: 13px;
-        }
-
-        .peer-tag::before {
-            content: '';
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: var(--success);
         }
 
         .error-toast {
@@ -577,6 +491,21 @@
             from { transform: translate(-50%, -100%); }
             to { transform: translate(-50%, 0); }
         }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -584,60 +513,44 @@
         <header>
             <h1>Direct Chat</h1>
             <div class="header-controls">
+                <span class="room-code-display hidden" id="roomDisplay"></span>
                 <span class="status" id="status">Offline</span>
-                <button class="icon" onclick="toggleTheme()" title="Toggle Theme">☀</button>
-                <button class="icon" id="inviteBtn" onclick="showInvite()" title="Invite" style="display:none;">+</button>
+                <button class="icon" onclick="toggleTheme()">☀</button>
             </div>
         </header>
 
         <div class="setup" id="setupView">
             <div class="setup-content">
                 <div class="mode-toggle">
-                    <button class="active" onclick="setMode('create')">Create Room</button>
-                    <button onclick="setMode('join')">Join Room</button>
+                    <button class="active" onclick="setMode('create')" id="btnCreate">Create Room</button>
+                    <button onclick="setMode('join')" id="btnJoin">Join Room</button>
                 </div>
 
                 <div id="createMode">
                     <div class="form-group">
                         <label>Your Name</label>
-                        <input type="text" id="createName" placeholder="Enter your name" maxlength="20">
+                        <input type="text" id="createName" placeholder="Enter your name" maxlength="15">
                     </div>
-                    <button class="btn" onclick="createRoom()">Create Room</button>
-
-                    <div id="hostPanel" class="hidden" style="margin-top: 20px;">
-                        <div class="section">
-                            <h3>Invite Code</h3>
-                            <div class="code-display" id="offerCode">Generating...</div>
-                            <button class="btn secondary" onclick="copyToClipboard('offerCode')">Copy Code</button>
-                        </div>
-                        <div class="section">
-                            <h3>Answer Codes</h3>
-                            <div id="answerList"></div>
-                            <button class="btn secondary" onclick="addAnswerInput()" style="margin-top: 8px;">+ Add Answer</button>
-                            <button class="btn" onclick="enterChat()" style="margin-top: 12px;">Enter Chat</button>
-                        </div>
+                    <button class="btn" onclick="createRoom()" id="createRoomBtn">Generate Room Code</button>
+                    
+                    <div id="createdView" class="hidden">
+                        <div class="big-code" id="generatedCode">0000000000</div>
+                        <p class="waiting-text">Share this 10-digit code with friends</p>
+                        <p class="waiting-text" style="font-size: 13px; color: var(--system);">Waiting for peers to join...</p>
+                        <button class="btn" onclick="enterChat()" style="margin-top: 20px;">Enter Chat</button>
                     </div>
                 </div>
 
                 <div id="joinMode" class="hidden">
                     <div class="form-group">
                         <label>Your Name</label>
-                        <input type="text" id="joinName" placeholder="Enter your name" maxlength="20">
+                        <input type="text" id="joinName" placeholder="Enter your name" maxlength="15">
                     </div>
                     <div class="form-group">
-                        <label>Invite Code</label>
-                        <textarea id="joinOffer" placeholder="Paste invite code here..."></textarea>
+                        <label>Enter 10-Digit Room Code</label>
+                        <input type="text" id="roomCodeInput" placeholder="1234567890" maxlength="10" style="font-size: 24px; letter-spacing: 4px;">
                     </div>
-                    <button class="btn" onclick="joinRoom()">Connect</button>
-
-                    <div id="joinPanel" class="hidden" style="margin-top: 20px;">
-                        <div class="section">
-                            <h3>Your Answer Code</h3>
-                            <div class="code-display" id="answerCode">...</div>
-                            <button class="btn secondary" onclick="copyToClipboard('answerCode')">Copy Code</button>
-                            <button class="btn" onclick="enterChat()" style="margin-top: 12px;">Enter Chat</button>
-                        </div>
-                    </div>
+                    <button class="btn" onclick="joinRoom()" id="joinRoomBtn">Join Room</button>
                 </div>
             </div>
         </div>
@@ -647,40 +560,19 @@
                 <div class="message system">Welcome to the chat</div>
             </div>
             
-            <div class="input-container" id="inputContainer">
-                <button class="input-btn" onclick="document.getElementById('fileInput').click()" title="Send File">📎</button>
-                <input type="file" id="fileInput" onchange="handleFileSelect(event)" multiple>
-                <input type="text" id="msgInput" placeholder="Type a message..." onkeypress="handleKey(event)" onfocus="handleFocus()">
-                <button class="input-btn send" onclick="sendMsg()" title="Send">→</button>
+            <div class="input-container">
+                <button class="input-btn" onclick="document.getElementById('fileInput').click()">📎</button>
+                <input type="file" id="fileInput" onchange="handleFileSelect(event)">
+                <input type="text" id="msgInput" placeholder="Type a message..." onkeypress="handleKey(event)">
+                <button class="input-btn send" onclick="sendMsg()">→</button>
             </div>
         </div>
 
-        <div class="modal-overlay hidden" id="mediaModal" onclick="if(event.target===this)closeMediaModal()">
-            <button class="close-modal" onclick="closeMediaModal()">×</button>
+        <div class="modal-overlay hidden" id="mediaModal" onclick="if(event.target===this)closeMedia()">
+            <button class="close-modal" onclick="closeMedia()">×</button>
             <div class="modal-content" id="mediaContent"></div>
-            <div class="modal-info" id="mediaInfo"></div>
             <div class="modal-actions">
-                <button class="modal-btn" id="mediaDownload" download>Download</button>
-                <button class="modal-btn secondary" onclick="closeMediaModal()">Close</button>
-            </div>
-        </div>
-
-        <div class="modal-overlay hidden" id="inviteModal" onclick="if(event.target===this)hideInvite()">
-            <div class="modal">
-                <button class="close-modal" onclick="hideInvite()" style="position:static; color:var(--text); align-self:flex-end; margin-bottom:10px;">×</button>
-                <h2 style="margin-bottom:16px;">Invite Someone</h2>
-                <div class="section" style="background:var(--surface);">
-                    <h3>New Invite Code</h3>
-                    <div class="code-display" id="newOfferCode">Generate a code to share...</div>
-                    <button class="btn secondary" onclick="generateNewInvite()" style="margin-bottom:8px;">Generate New Code</button>
-                    <button class="btn secondary" onclick="copyToClipboard('newOfferCode')">Copy</button>
-                </div>
-                <div class="section" style="background:var(--surface);">
-                    <h3>Pending Answers</h3>
-                    <div id="lateAnswerList"></div>
-                    <button class="btn secondary" onclick="addLateAnswerInput()">+ Add Answer</button>
-                </div>
-                <div class="peer-list" id="peerListDisplay"></div>
+                <button class="modal-btn" onclick="downloadCurrentFile()">Download</button>
             </div>
         </div>
     </div>
@@ -688,37 +580,334 @@
     <script>
         const ICE_SERVERS = [{urls: 'stun:stun.l.google.com:19302'}];
         const MAX_FILE_SIZE = 600 * 1024 * 1024;
-        const CHUNK_SIZE = 8192; // Reduced to 8KB for reliability
-
+        const CHUNK_SIZE = 16384;
+        
         let myName = '';
+        let roomCode = '';
         let isHost = false;
-        let connections = new Map();
-        let hostConnectionCounter = 0;
-        let currentMode = 'create';
-        let fileStorage = new Map();
-        let pendingFiles = []; // Queue for files sent before connection
-        let messageQueue = []; // Queue for messages
-
-        // Theme functions
-        function toggleTheme() {
-            const current = document.documentElement.getAttribute('data-theme');
-            const next = current === 'dark' ? 'light' : 'dark';
-            document.documentElement.setAttribute('data-theme', next);
-            localStorage.setItem('theme', next);
-            event.target.textContent = next === 'dark' ? '☾' : '☀';
+        let peerConnection = null;
+        let dataChannel = null;
+        let currentFile = null;
+        let fileBuffer = [];
+        let fileMeta = null;
+        let receivedSize = 0;
+        
+        async function initFirebase() {
+            while (!window.db) {
+                await new Promise(r => setTimeout(r, 100));
+            }
+            return window.db;
         }
-
-        const savedTheme = localStorage.getItem('theme') || 'light';
-        document.documentElement.setAttribute('data-theme', savedTheme);
-
+        
         function setMode(mode) {
-            currentMode = mode;
-            document.querySelectorAll('.mode-toggle button').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
+            document.getElementById('btnCreate').classList.toggle('active', mode === 'create');
+            document.getElementById('btnJoin').classList.toggle('active', mode === 'join');
             document.getElementById('createMode').classList.toggle('hidden', mode !== 'create');
             document.getElementById('joinMode').classList.toggle('hidden', mode !== 'join');
         }
-
+        
+        function generateRoomCode() {
+            return Math.floor(1000000000 + Math.random() * 9000000000).toString();
+        }
+        
+        async function createRoom() {
+            myName = document.getElementById('createName').value.trim() || 'Host';
+            roomCode = generateRoomCode();
+            isHost = true;
+            
+            document.getElementById('generatedCode').textContent = roomCode;
+            document.getElementById('createdView').classList.remove('hidden');
+            document.getElementById('createRoomBtn').classList.add('hidden');
+            
+            await setupHost();
+        }
+        
+        async function setupHost() {
+            const db = await initFirebase();
+            const { doc, setDoc, onSnapshot, deleteDoc } = window.firestore;
+            
+            peerConnection = new RTCPeerConnection({iceServers: ICE_SERVERS});
+            
+            peerConnection.onicecandidate = async (event) => {
+                if (event.candidate) return;
+                await setDoc(doc(db, 'rooms', roomCode), {
+                    offer: JSON.stringify(peerConnection.localDescription),
+                    host: myName,
+                    timestamp: Date.now()
+                });
+            };
+            
+            const unsub = onSnapshot(doc(db, 'rooms', roomCode), async (snapshot) => {
+                if (!snapshot.exists()) return;
+                const data = snapshot.data();
+                
+                if (data.answer && peerConnection.signalingState !== 'stable') {
+                    await peerConnection.setRemoteDescription(JSON.parse(data.answer));
+                    updateStatus(true);
+                    log('Peer connected!');
+                    setTimeout(() => deleteDoc(doc(db, 'rooms', roomCode)), 3000);
+                }
+            });
+            
+            dataChannel = peerConnection.createDataChannel('chat', {ordered: true});
+            setupDataChannel(dataChannel);
+            
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+        }
+        
+        async function joinRoom() {
+            myName = document.getElementById('joinName').value.trim() || 'Guest';
+            roomCode = document.getElementById('roomCodeInput').value.trim();
+            
+            if (roomCode.length !== 10 || !/^\d+$/.test(roomCode)) {
+                showError('Please enter a valid 10-digit code');
+                return;
+            }
+            
+            document.getElementById('joinRoomBtn').disabled = true;
+            document.getElementById('joinRoomBtn').innerHTML = 'Connecting<span class="spinner"></span>';
+            
+            const db = await initFirebase();
+            const { doc, getDoc, setDoc } = window.firestore;
+            
+            const roomSnap = await getDoc(doc(db, 'rooms', roomCode));
+            
+            if (!roomSnap.exists()) {
+                showError('Room not found');
+                document.getElementById('joinRoomBtn').disabled = false;
+                document.getElementById('joinRoomBtn').textContent = 'Join Room';
+                return;
+            }
+            
+            const roomData = roomSnap.data();
+            peerConnection = new RTCPeerConnection({iceServers: ICE_SERVERS});
+            
+            peerConnection.ondatachannel = (event) => {
+                dataChannel = event.channel;
+                setupDataChannel(dataChannel);
+            };
+            
+            await peerConnection.setRemoteDescription(JSON.parse(roomData.offer));
+            
+            peerConnection.onicecandidate = async (event) => {
+                if (event.candidate) return;
+                await setDoc(doc(db, 'rooms', roomCode), {
+                    answer: JSON.stringify(peerConnection.localDescription),
+                    peer: myName
+                }, {merge: true});
+            };
+            
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            
+            setTimeout(() => {
+                if (dataChannel?.readyState === 'open') {
+                    enterChat();
+                } else {
+                    setTimeout(() => {
+                        if (dataChannel?.readyState === 'open') enterChat();
+                        else {
+                            showError('Connection failed');
+                            document.getElementById('joinRoomBtn').disabled = false;
+                            document.getElementById('joinRoomBtn').textContent = 'Join Room';
+                        }
+                    }, 2000);
+                }
+            }, 1000);
+        }
+        
+        function setupDataChannel(channel) {
+            channel.binaryType = 'arraybuffer';
+            
+            channel.onopen = () => {
+                updateStatus(true);
+                log('Connected!');
+                if (!isHost) enterChat();
+                channel.send(JSON.stringify({type: 'announce', name: myName}));
+            };
+            
+            channel.onclose = () => {
+                updateStatus(false);
+                log('Peer disconnected', 'disconnect');
+            };
+            
+            channel.onmessage = (event) => {
+                if (event.data instanceof ArrayBuffer) {
+                    if (!fileMeta) return;
+                    fileBuffer.push(event.data);
+                    receivedSize += event.data.byteLength;
+                    
+                    if (receivedSize >= fileMeta.size) {
+                        const blob = new Blob(fileBuffer);
+                        displayFile(fileMeta, blob, false);
+                        fileBuffer = [];
+                        fileMeta = null;
+                        receivedSize = 0;
+                    }
+                } else {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.type === 'chat') displayMessage(data.name, data.text, false);
+                        else if (data.type === 'announce') log(data.name + ' joined');
+                        else if (data.type === 'file-start') {
+                            fileMeta = data;
+                            fileBuffer = [];
+                            receivedSize = 0;
+                        }
+                    } catch (e) {}
+                }
+            };
+        }
+        
+        function enterChat() {
+            document.getElementById('setupView').classList.add('hidden');
+            document.getElementById('chatView').classList.remove('hidden');
+            document.getElementById('roomDisplay').textContent = '#' + roomCode;
+            document.getElementById('roomDisplay').classList.remove('hidden');
+            log('You joined as ' + myName);
+        }
+        
+        function updateStatus(online) {
+            const el = document.getElementById('status');
+            el.textContent = online ? 'Online' : 'Offline';
+            el.classList.toggle('online', online);
+        }
+        
+        function log(msg, type) {
+            const div = document.createElement('div');
+            div.className = 'message system';
+            if (type === 'disconnect') div.style.color = 'var(--error)';
+            div.textContent = msg;
+            document.getElementById('messages').appendChild(div);
+            scrollToBottom();
+        }
+        
+        function displayMessage(name, text, isOwn) {
+            const div = document.createElement('div');
+            div.className = 'message ' + (isOwn ? 'own' : 'other');
+            if (!isOwn) div.innerHTML = `<div class="msg-author">${escapeHtml(name)}</div>`;
+            div.innerHTML += escapeHtml(text);
+            document.getElementById('messages').appendChild(div);
+            scrollToBottom();
+        }
+        
+        function displayFile(meta, blob, isOwn) {
+            const div = document.createElement('div');
+            div.className = 'message ' + (isOwn ? 'own' : 'other');
+            if (!isOwn) div.innerHTML = `<div class="msg-author">${escapeHtml(meta.name || 'Unknown')}</div>`;
+            
+            currentFile = {blob, meta};
+            const isImage = meta.type?.startsWith('image/');
+            const icon = isImage ? '🖼️' : meta.name?.endsWith('.exe') ? '⚙️' : '📎';
+            
+            div.innerHTML += `
+                <div class="file-box" onclick="openFile()">
+                    <span class="file-icon">${icon}</span>
+                    <div class="file-details">
+                        <span class="file-name">${escapeHtml(meta.name)}</span>
+                        <span class="file-meta">${formatBytes(meta.size)} • Tap to ${isImage ? 'view' : 'download'}</span>
+                    </div>
+                </div>
+            `;
+            document.getElementById('messages').appendChild(div);
+            scrollToBottom();
+        }
+        
+        async function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            e.target.value = '';
+            
+            if (file.size > MAX_FILE_SIZE) {
+                showError('File too large (max 600MB)');
+                return;
+            }
+            
+            const buffer = await file.arrayBuffer();
+            const blob = new Blob([buffer]);
+            displayFile({name: file.name, type: file.type, size: file.size}, blob, true);
+            
+            dataChannel.send(JSON.stringify({
+                type: 'file-start',
+                name: file.name,
+                type: file.type,
+                size: file.size
+            }));
+            
+            let offset = 0;
+            while (offset < buffer.byteLength) {
+                const chunk = buffer.slice(offset, offset + CHUNK_SIZE);
+                dataChannel.send(chunk);
+                offset += CHUNK_SIZE;
+                await new Promise(r => setTimeout(r, 0));
+            }
+        }
+        
+        function sendMsg() {
+            const input = document.getElementById('msgInput');
+            const text = input.value.trim();
+            if (!text || !dataChannel || dataChannel.readyState !== 'open') return;
+            
+            displayMessage(myName, text, true);
+            input.value = '';
+            dataChannel.send(JSON.stringify({type: 'chat', name: myName, text: text}));
+        }
+        
+        function handleKey(e) {
+            if (e.key === 'Enter') sendMsg();
+        }
+        
+        function scrollToBottom() {
+            const container = document.getElementById('messages');
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function openFile() {
+            if (!currentFile) return;
+            const {blob, meta} = currentFile;
+            
+            if (meta.type?.startsWith('image/')) {
+                const url = URL.createObjectURL(blob);
+                document.getElementById('mediaContent').innerHTML = `<img src="${url}" style="max-width: 100%;">`;
+                document.getElementById('mediaModal').classList.remove('hidden');
+            } else {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = meta.name;
+                a.click();
+            }
+        }
+        
+        function closeMedia() {
+            document.getElementById('mediaModal').classList.add('hidden');
+        }
+        
+        function downloadCurrentFile() {
+            if (currentFile) {
+                const url = URL.createObjectURL(currentFile.blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = currentFile.meta.name;
+                a.click();
+            }
+        }
+        
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
         function showError(msg) {
             const toast = document.createElement('div');
             toast.className = 'error-toast';
@@ -726,668 +915,12 @@
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 3000);
         }
-
-        function log(msg, type='system') {
-            console.log(msg);
-            addSystemMessage(msg, type);
-        }
-
-        function addSystemMessage(text, type='normal') {
-            const container = document.getElementById('messages');
-            if (!container) return;
-            const div = document.createElement('div');
-            div.className = 'message system';
-            if (type === 'disconnect') div.classList.add('disconnect');
-            div.textContent = text;
-            container.appendChild(div);
-            scrollToBottom();
-        }
-
-        function updateStatus() {
-            const hasConnection = Array.from(connections.values()).some(c => c.connected);
-            const statusEl = document.getElementById('status');
-            statusEl.textContent = hasConnection ? 'Online' : 'Offline';
-            statusEl.classList.toggle('online', hasConnection);
-            
-            // Send any queued files/messages now that we're connected
-            if (hasConnection) {
-                flushQueues();
-            }
-        }
-
-        function flushQueues() {
-            // Send queued messages
-            while (messageQueue.length > 0) {
-                const msg = messageQueue.shift();
-                broadcast(msg);
-            }
-            
-            // Process pending files
-            while (pendingFiles.length > 0) {
-                const fileData = pendingFiles.shift();
-                broadcastFile(fileData);
-            }
-        }
-
-        // WebRTC Functions
-        async function createRoom() {
-            myName = document.getElementById('createName').value.trim() || 'Host';
-            isHost = true;
-            await generateOffer();
-            document.getElementById('hostPanel').classList.remove('hidden');
-            addAnswerInput();
-        }
-
-        async function generateOffer() {
-            const pc = new RTCPeerConnection({iceServers: ICE_SERVERS});
-            const peerId = 'peer-' + hostConnectionCounter++;
-            
-            const channel = pc.createDataChannel('chat', {ordered: true});
-            setupChannel(channel, peerId);
-            
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            await waitForIce(pc);
-            
-            connections.set(peerId, {
-                pc: pc,
-                channel: channel,
-                name: 'Unknown',
-                connected: false,
-                id: peerId
-            });
-            
-            const code = btoa(JSON.stringify({
-                type: 'offer',
-                sdp: pc.localDescription,
-                host: myName,
-                id: peerId
-            }));
-            
-            document.getElementById('offerCode').textContent = code;
-            return code;
-        }
-
-        async function waitForIce(pc) {
-            return new Promise(resolve => {
-                if (pc.iceGatheringState === 'complete') return resolve();
-                pc.onicegatheringstatechange = () => {
-                    if (pc.iceGatheringState === 'complete') resolve();
-                };
-                setTimeout(resolve, 2000);
-            });
-        }
-
-        function addAnswerInput() {
-            const container = document.getElementById(currentMode === 'create' ? 'answerList' : 'lateAnswerList');
-            const div = document.createElement('div');
-            div.style.marginBottom = '8px';
-            div.innerHTML = `<textarea placeholder="Paste answer code..." rows="2" onchange="processAnswerInput(this)" style="width:100%;"></textarea>`;
-            container.appendChild(div);
-        }
-
-        async function processAnswerInput(textarea) {
-            if (textarea.value.trim()) {
-                await processAnswer(textarea.value.trim());
-                textarea.value = '';
-                updatePeerList();
-            }
-        }
-
-        async function processAnswer(answerCode) {
-            try {
-                const data = JSON.parse(atob(answerCode));
-                const peerId = data.id;
-                
-                let conn = connections.get(peerId);
-                if (!conn) {
-                    const pc = new RTCPeerConnection({iceServers: ICE_SERVERS});
-                    conn = {
-                        pc: pc,
-                        channel: null,
-                        name: data.name || 'Unknown',
-                        connected: false,
-                        id: peerId
-                    };
-                    connections.set(peerId, conn);
-                    
-                    pc.ondatachannel = (e) => {
-                        conn.channel = e.channel;
-                        setupChannel(e.channel, peerId);
-                    };
-                }
-                
-                await conn.pc.setRemoteDescription(data.sdp);
-                log(`Connected to ${data.name || 'peer'}`);
-                updateStatus();
-            } catch (e) {
-                showError('Invalid answer code');
-                console.error(e);
-            }
-        }
-
-        async function joinRoom() {
-            myName = document.getElementById('joinName').value.trim() || 'Guest';
-            const offerCode = document.getElementById('joinOffer').value.trim();
-            if (!offerCode) return alert('Please paste invite code');
-            
-            try {
-                const data = JSON.parse(atob(offerCode));
-                const peerId = data.id || 'host';
-                
-                const pc = new RTCPeerConnection({iceServers: ICE_SERVERS});
-                
-                pc.ondatachannel = (e) => {
-                    const channel = e.channel;
-                    setupChannel(channel, peerId);
-                    connections.set(peerId, {
-                        pc: pc,
-                        channel: channel,
-                        name: data.host || 'Host',
-                        connected: false,
-                        id: peerId
-                    });
-                };
-                
-                await pc.setRemoteDescription(data.sdp);
-                const answer = await pc.createAnswer();
-                await pc.setLocalDescription(answer);
-                await waitForIce(pc);
-                
-                const answerCode = btoa(JSON.stringify({
-                    type: 'answer',
-                    sdp: pc.localDescription,
-                    name: myName,
-                    id: peerId
-                }));
-                
-                document.getElementById('answerCode').textContent = answerCode;
-                document.getElementById('joinPanel').classList.remove('hidden');
-            } catch (e) {
-                showError('Invalid invite code');
-            }
-        }
-
-        // File reception state
-        let incomingFiles = new Map(); // peerId + fileId -> chunks
-
-        function setupChannel(channel, peerId) {
-            channel.binaryType = 'arraybuffer';
-            let currentFileId = null;
-            let fileBuffer = [];
-            let expectedSize = 0;
-            let receivedSize = 0;
-            
-            channel.onopen = () => {
-                const conn = connections.get(peerId);
-                if (conn) {
-                    conn.connected = true;
-                    conn.channel = channel;
-                }
-                updateStatus();
-                log(`${connections.get(peerId)?.name || 'Someone'} joined`);
-                updatePeerList();
-                
-                // Send announcement
-                try {
-                    channel.send(JSON.stringify({type: 'announce', name: myName}));
-                } catch (e) {
-                    console.error('Failed to announce:', e);
-                }
-            };
-            
-            channel.onclose = () => {
-                const conn = connections.get(peerId);
-                if (conn) {
-                    conn.connected = false;
-                    log(`${conn.name || 'Someone'} left`, 'disconnect');
-                }
-                updateStatus();
-                updatePeerList();
-            };
-            
-            channel.onerror = (e) => {
-                console.error('Channel error:', e);
-                showError('Connection error occurred');
-            };
-            
-            channel.onmessage = (e) => {
-                if (e.data instanceof ArrayBuffer) {
-                    // Handle binary file data
-                    if (currentFileId) {
-                        fileBuffer.push(e.data);
-                        receivedSize += e.data.byteLength;
-                        
-                        if (receivedSize >= expectedSize) {
-                            // File complete
-                            const blob = new Blob(fileBuffer);
-                            const conn = connections.get(peerId);
-                            displayFileMessage({
-                                id: currentFileId,
-                                name: 'Unknown',
-                                type: 'application/octet-stream',
-                                size: expectedSize
-                            }, blob, conn?.name || 'Unknown', false, true);
-                            
-                            // Reset
-                            currentFileId = null;
-                            fileBuffer = [];
-                            expectedSize = 0;
-                            receivedSize = 0;
-                        }
-                    }
-                } else {
-                    try {
-                        const data = JSON.parse(e.data);
-                        
-                        if (data.type === 'chat') {
-                            displayMessage(data.name, data.text, false);
-                        } else if (data.type === 'announce') {
-                            const conn = connections.get(peerId);
-                            if (conn) {
-                                conn.name = data.name;
-                                log(`${data.name} joined`);
-                                updatePeerList();
-                            }
-                        } else if (data.type === 'file-start') {
-                            // New file incoming
-                            currentFileId = data.id;
-                            expectedSize = data.size;
-                            receivedSize = 0;
-                            fileBuffer = [];
-                            
-                            // Store metadata temporarily
-                            incomingFiles.set(data.id, {
-                                name: data.name,
-                                type: data.type,
-                                size: data.size
-                            });
-                        } else if (data.type === 'file-complete') {
-                            // Alternative: metadata sent after binary data
-                            const metadata = incomingFiles.get(data.id);
-                            if (metadata && fileBuffer.length > 0) {
-                                const blob = new Blob(fileBuffer, {type: metadata.type});
-                                const conn = connections.get(peerId);
-                                displayFileMessage(metadata, blob, conn?.name || 'Unknown', false, true);
-                                
-                                // Cleanup
-                                incomingFiles.delete(data.id);
-                                fileBuffer = [];
-                                currentFileId = null;
-                            }
-                        }
-                    } catch (err) {
-                        console.error('Parse error:', err);
-                    }
-                }
-            };
-        }
-
-        // Chat Functions
-        function enterChat() {
-            if (isHost) {
-                const inputs = document.querySelectorAll('#answerList textarea');
-                Promise.all(Array.from(inputs).map(async (input) => {
-                    if (input.value.trim()) {
-                        await processAnswer(input.value.trim());
-                        input.value = '';
-                    }
-                })).then(() => {
-                    showChat();
-                });
-            } else {
-                showChat();
-            }
-        }
-
-        function showChat() {
-            document.getElementById('setupView').classList.add('hidden');
-            document.getElementById('chatView').classList.remove('hidden');
-            document.getElementById('inviteBtn').style.display = 'block';
-            log('Chat started');
-        }
-
-        function displayMessage(name, text, isOwn) {
-            const container = document.getElementById('messages');
-            const div = document.createElement('div');
-            div.className = 'message ' + (isOwn ? 'own' : 'other');
-            if (!isOwn) div.innerHTML = `<div class="msg-author">${escapeHtml(name)}</div>`;
-            div.innerHTML += escapeHtml(text);
-            container.appendChild(div);
-            scrollToBottom();
-        }
-
-        let fileCounter = 0;
-
-        function displayFileMessage(metadata, blob, name, isOwn, isRemote = false) {
-            const container = document.getElementById('messages');
-            const div = document.createElement('div');
-            div.className = 'message ' + (isOwn ? 'own' : 'other');
-            if (!isOwn) div.innerHTML = `<div class="msg-author">${escapeHtml(name)}</div>`;
-            
-            const fileId = 'file-' + Date.now() + '-' + (fileCounter++);
-            fileStorage.set(fileId, {blob, metadata});
-            
-            // Determine icon
-            let icon = '📎';
-            const fileName = metadata.name.toLowerCase();
-            if (metadata.type?.startsWith('image/') || fileName.match(/\.(jpg|jpeg|png|gif|webp|bmp)$/)) icon = '🖼️';
-            else if (metadata.type?.startsWith('video/') || fileName.match(/\.(mp4|mov|avi|mkv)$/)) icon = '🎬';
-            else if (metadata.type?.startsWith('audio/') || fileName.match(/\.(mp3|wav|flac|aac)$/)) icon = '🎵';
-            else if (fileName.match(/\.(exe|dmg|pkg|deb|rpm|msi|bat|sh|apk)$/)) icon = '⚙️';
-            else if (fileName.match(/\.(pdf|doc|docx|txt|rtf)$/)) icon = '📄';
-            else if (fileName.match(/\.(zip|rar|7z|tar|gz)$/)) icon = '📦';
-            
-            const isExecutable = fileName.match(/\.(exe|dmg|pkg|deb|rpm|msi|bat|sh|apk)$/i);
-            const action = isExecutable ? 'Install' : (icon === '🖼️' || icon === '🎬') ? 'View' : 'Download';
-            
-            div.innerHTML += `
-                <div class="file-box" onclick="handleFileClick('${fileId}')" id="box-${fileId}">
-                    <span class="file-icon">${icon}</span>
-                    <div class="file-details">
-                        <span class="file-name">${escapeHtml(metadata.name)}</span>
-                        <span class="file-meta">${formatFileSize(metadata.size)} • Tap to ${action}</span>
-                        ${!isRemote ? '<span class="transfer-status" id="status-' + fileId + '">Sending...</span>' : ''}
-                    </div>
-                </div>
-            `;
-            
-            container.appendChild(div);
-            scrollToBottom();
-            
-            // If it's our file and we have connections, mark as sent when done
-            if (!isRemote) {
-                updateFileStatus(fileId, 'Sent');
-            }
-            
-            return fileId;
-        }
-
-        function updateFileStatus(fileId, status) {
-            const el = document.getElementById('status-' + fileId);
-            if (el) {
-                el.textContent = status;
-                el.style.color = 'var(--success)';
-                setTimeout(() => el.remove(), 2000);
-            }
-        }
-
-        function handleFileClick(fileId) {
-            const fileData = fileStorage.get(fileId);
-            if (!fileData) {
-                showError('File no longer available');
-                return;
-            }
-            
-            const {blob, metadata} = fileData;
-            const fileName = metadata.name.toLowerCase();
-            const isImage = metadata.type?.startsWith('image/') || fileName.match(/\.(jpg|jpeg|png|gif|webp|bmp)$/);
-            const isVideo = metadata.type?.startsWith('video/') || fileName.match(/\.(mp4|mov|avi|mkv)$/);
-            const isExecutable = fileName.match(/\.(exe|dmg|pkg|deb|rpm|msi|bat|sh|apk)$/i);
-            
-            if (isImage || isVideo) {
-                showMediaModal(blob, metadata);
-            } else {
-                // Download/Install
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = metadata.name;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                
-                if (isExecutable) {
-                    log('Downloaded: ' + metadata.name);
-                    showError('Run the downloaded file to install');
-                }
-            }
-        }
-
-        function showMediaModal(blob, metadata) {
-            const modal = document.getElementById('mediaModal');
-            const content = document.getElementById('mediaContent');
-            const info = document.getElementById('mediaInfo');
-            const downloadBtn = document.getElementById('mediaDownload');
-            
-            const url = URL.createObjectURL(blob);
-            
-            if (metadata.type?.startsWith('image/')) {
-                content.innerHTML = `<img src="${url}" alt="${escapeHtml(metadata.name)}" style="max-height: 60vh;">`;
-            } else if (metadata.type?.startsWith('video/')) {
-                content.innerHTML = `<video src="${url}" controls style="max-height: 60vh;"></video>`;
-            }
-            
-            info.innerHTML = `<strong>${escapeHtml(metadata.name)}</strong><br>${formatFileSize(metadata.size)}`;
-            downloadBtn.href = url;
-            downloadBtn.download = metadata.name;
-            
-            modal.classList.remove('hidden');
-        }
-
-        function closeMediaModal() {
-            document.getElementById('mediaModal').classList.add('hidden');
-        }
-
-        function sendMsg() {
-            const input = document.getElementById('msgInput');
-            const text = input.value.trim();
-            if (!text) return;
-            
-            displayMessage(myName, text, true);
-            input.value = '';
-            
-            const data = {type: 'chat', name: myName, text: text};
-            
-            // Check if we have open connections
-            const hasOpen = Array.from(connections.values()).some(c => c.connected);
-            if (hasOpen) {
-                broadcast(data);
-            } else {
-                messageQueue.push(data);
-                addSystemMessage('Message queued (waiting for peers)...');
-            }
-        }
-
-        function broadcast(data) {
-            const msg = JSON.stringify(data);
-            let sent = false;
-            connections.forEach(conn => {
-                if (conn.channel?.readyState === 'open') {
-                    try {
-                        conn.channel.send(msg);
-                        sent = true;
-                    } catch (e) {
-                        console.error('Send failed to', conn.id, e);
-                    }
-                }
-            });
-            return sent;
-        }
-
-        // File Handling - Fixed Version
-        async function handleFileSelect(event) {
-            const files = Array.from(event.target.files);
-            event.target.value = '';
-            
-            const hasConnections = Array.from(connections.values()).some(c => c.connected);
-            
-            for (const file of files) {
-                if (file.size > MAX_FILE_SIZE) {
-                    showError(`${file.name} too large (max 600MB)`);
-                    continue;
-                }
-                
-                // Show locally immediately
-                const buffer = await file.arrayBuffer();
-                const blob = new Blob([buffer], {type: file.type});
-                const fileId = displayFileMessage({
-                    name: file.name,
-                    type: file.type,
-                    size: file.size
-                }, blob, myName, true, false);
-                
-                if (hasConnections) {
-                    // Send immediately
-                    await sendFileToAll(file, buffer, fileId);
-                } else {
-                    // Queue for later
-                    pendingFiles.push({file, buffer, fileId});
-                    updateFileStatus(fileId, 'Waiting for peers...');
-                    addSystemMessage('File queued - will send when peers connect');
-                }
-            }
-        }
-
-        async function sendFileToAll(file, buffer, localFileId) {
-            const fileId = 'file-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-            
-            // Send metadata first
-            const metadata = {
-                type: 'file-start',
-                id: fileId,
-                name: file.name,
-                size: file.size,
-                mimeType: file.type
-            };
-            
-            // Send to all connected peers
-            const peers = Array.from(connections.values()).filter(c => c.connected);
-            if (peers.length === 0) {
-                updateFileStatus(localFileId, 'Failed - no peers');
-                return;
-            }
-            
-            // Send metadata
-            broadcast(metadata);
-            
-            // Small delay to ensure metadata arrives first
-            await new Promise(r => setTimeout(r, 100));
-            
-            // Send chunks
-            let offset = 0;
-            const totalChunks = Math.ceil(buffer.byteLength / CHUNK_SIZE);
-            let chunksSent = 0;
-            
-            while (offset < buffer.byteLength) {
-                const chunk = buffer.slice(offset, Math.min(offset + CHUNK_SIZE, buffer.byteLength));
-                
-                // Send to all peers
-                peers.forEach(conn => {
-                    if (conn.channel?.readyState === 'open') {
-                        try {
-                            conn.channel.send(chunk);
-                        } catch (e) {
-                            console.error('Chunk send failed:', e);
-                        }
-                    }
-                });
-                
-                offset += CHUNK_SIZE;
-                chunksSent++;
-                
-                // Update progress every 10%
-                if (chunksSent % Math.max(1, Math.floor(totalChunks / 10)) === 0) {
-                    const progress = Math.round((chunksSent / totalChunks) * 100);
-                    updateFileStatus(localFileId, `Sending ${progress}%`);
-                }
-                
-                // Yield to prevent blocking
-                if (chunksSent % 10 === 0) {
-                    await new Promise(r => setTimeout(r, 0));
-                }
-            }
-            
-            // Signal completion
-            await new Promise(r => setTimeout(r, 100));
-            broadcast({
-                type: 'file-complete',
-                id: fileId
-            });
-            
-            updateFileStatus(localFileId, 'Sent');
-        }
-
-        function broadcastFile(fileData) {
-            sendFileToAll(fileData.file, fileData.buffer, fileData.fileId);
-        }
-
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 B';
-            const k = 1024;
-            const sizes = ['B', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-        }
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function handleKey(e) {
-            if (e.key === 'Enter') sendMsg();
-        }
-
-        function handleFocus() {
-            setTimeout(scrollToBottom, 300);
-        }
-
-        function scrollToBottom() {
-            const container = document.getElementById('messages');
-            if (container) container.scrollTop = container.scrollHeight;
-        }
-
-        function generateId() {
-            return Math.random().toString(36).substr(2, 9);
-        }
-
-        function showInvite() {
-            document.getElementById('inviteModal').classList.remove('hidden');
-            updatePeerList();
-        }
-
-        function hideInvite() {
-            document.getElementById('inviteModal').classList.add('hidden');
-        }
-
-        async function generateNewInvite() {
-            const code = await generateOffer();
-            document.getElementById('newOfferCode').textContent = code;
-        }
-
-        function addLateAnswerInput() {
-            const container = document.getElementById('lateAnswerList');
-            const div = document.createElement('div');
-            div.style.marginBottom = '8px';
-            div.innerHTML = `<textarea placeholder="Paste answer code..." rows="2" onchange="processAnswerInput(this)" style="width:100%;"></textarea>`;
-            container.appendChild(div);
-        }
-
-        function updatePeerList() {
-            const list = document.getElementById('peerListDisplay');
-            const connected = Array.from(connections.values()).filter(c => c.connected);
-            list.innerHTML = connected.length === 0 ? '<strong>Connected:</strong> No peers' : 
-                '<strong>Connected:</strong> ' + connected.map(c => `<span class="peer-tag">${c.name}</span>`).join('');
-        }
-
-        function copyToClipboard(elementId) {
-            const el = document.getElementById(elementId);
-            navigator.clipboard.writeText(el.textContent).then(() => {
-                const btn = event.target;
-                const original = btn.textContent;
-                btn.textContent = 'Copied!';
-                setTimeout(() => btn.textContent = original, 1500);
-            }).catch(() => {
-                // Fallback
-                const range = document.createRange();
-                range.selectNode(el);
-                window.getSelection().removeAllRanges();
-                window.getSelection().addRange(range);
-                document.execCommand('copy');
-                window.getSelection().removeAllRanges();
-            });
+        
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            event.target.textContent = next === 'dark' ? '☾' : '☀';
         }
     </script>
 </body>
