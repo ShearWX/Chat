@@ -1,4 +1,4 @@
-Basic Peer to Peer message website to use in school or anywhere.
+Basic Peer to Peer message website with servers to use in school or anywhere.
 
 CREATING A ROOM:
 Create a room by typing a name and clicking "Create Room"
