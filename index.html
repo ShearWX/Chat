@@ -19,6 +19,7 @@
             --other-text: #111111;
             --system: #8e8e93;
             --error: #ff3b30;
+            --success: #34c759;
         }
 
         [data-theme="dark"] {
@@ -35,6 +36,7 @@
             --other-text: #ffffff;
             --system: #636366;
             --error: #ff453a;
+            --success: #30d158;
         }
 
         * {
@@ -63,7 +65,6 @@
             position: relative;
         }
 
-        /* Header */
         header {
             padding: 12px 16px;
             border-bottom: 1px solid var(--border);
@@ -104,7 +105,7 @@
         }
 
         .status.online::before {
-            background: #34c759;
+            background: var(--success);
         }
 
         button.icon {
@@ -121,7 +122,6 @@
             justify-content: center;
             min-width: 36px;
             min-height: 36px;
-            transition: all 0.2s;
         }
 
         button.icon:active {
@@ -134,7 +134,6 @@
             font-size: 16px;
         }
 
-        /* Setup Screen */
         .setup {
             flex: 1;
             overflow-y: auto;
@@ -168,7 +167,6 @@
             cursor: pointer;
             font-size: 15px;
             color: var(--text-secondary);
-            font-weight: 400;
         }
 
         .mode-toggle button.active {
@@ -198,11 +196,6 @@
             color: var(--text);
             font-size: 16px;
             outline: none;
-            transition: border-color 0.2s;
-        }
-
-        input[type="text"]:focus, textarea:focus {
-            border-color: var(--accent);
         }
 
         textarea {
@@ -223,7 +216,6 @@
             cursor: pointer;
             width: 100%;
             touch-action: manipulation;
-            transition: opacity 0.2s;
         }
 
         .btn:hover {
@@ -234,6 +226,11 @@
             background: var(--surface);
             color: var(--accent);
             border: 1px solid var(--border);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .section {
@@ -268,7 +265,6 @@
             display: none !important;
         }
 
-        /* Chat Screen */
         .chat {
             flex: 1;
             display: flex;
@@ -281,7 +277,7 @@
             flex: 1;
             overflow-y: auto;
             padding: 16px;
-            padding-bottom: 100px;
+            padding-bottom: 120px;
             display: flex;
             flex-direction: column;
             gap: 4px;
@@ -340,7 +336,6 @@
             margin-bottom: 2px;
         }
 
-        /* File Box Styling */
         .file-box {
             margin-top: 6px;
             padding: 12px;
@@ -353,10 +348,21 @@
             transition: opacity 0.2s;
             max-width: 100%;
             overflow: hidden;
+            position: relative;
         }
 
         .file-box:active {
             opacity: 0.7;
+        }
+
+        .file-box.sending::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            background: var(--success);
+            transition: width 0.3s;
         }
 
         .file-icon {
@@ -385,7 +391,12 @@
             margin-top: 2px;
         }
 
-        /* Input Container */
+        .transfer-status {
+            font-size: 11px;
+            color: var(--success);
+            margin-top: 4px;
+        }
+
         .input-container {
             position: fixed;
             bottom: 0;
@@ -424,7 +435,6 @@
             font-size: 20px;
             padding: 0;
             flex-shrink: 0;
-            transition: transform 0.1s;
         }
 
         .input-btn:active {
@@ -440,7 +450,6 @@
             display: none;
         }
 
-        /* Modal */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -515,7 +524,6 @@
             justify-content: center;
         }
 
-        /* Invite Modal */
         .modal {
             background: var(--bg);
             border-radius: 12px;
@@ -549,7 +557,25 @@
             width: 6px;
             height: 6px;
             border-radius: 50%;
-            background: #34c759;
+            background: var(--success);
+        }
+
+        .error-toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--error);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            z-index: 2000;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from { transform: translate(-50%, -100%); }
+            to { transform: translate(-50%, 0); }
         }
     </style>
 </head>
@@ -564,7 +590,6 @@
             </div>
         </header>
 
-        <!-- Setup View -->
         <div class="setup" id="setupView">
             <div class="setup-content">
                 <div class="mode-toggle">
@@ -617,7 +642,6 @@
             </div>
         </div>
 
-        <!-- Chat View -->
         <div class="chat hidden" id="chatView">
             <div class="messages" id="messages">
                 <div class="message system">Welcome to the chat</div>
@@ -631,7 +655,6 @@
             </div>
         </div>
 
-        <!-- Media View Modal -->
         <div class="modal-overlay hidden" id="mediaModal" onclick="if(event.target===this)closeMediaModal()">
             <button class="close-modal" onclick="closeMediaModal()">×</button>
             <div class="modal-content" id="mediaContent"></div>
@@ -642,7 +665,6 @@
             </div>
         </div>
 
-        <!-- Invite Modal -->
         <div class="modal-overlay hidden" id="inviteModal" onclick="if(event.target===this)hideInvite()">
             <div class="modal">
                 <button class="close-modal" onclick="hideInvite()" style="position:static; color:var(--text); align-self:flex-end; margin-bottom:10px;">×</button>
@@ -666,17 +688,18 @@
     <script>
         const ICE_SERVERS = [{urls: 'stun:stun.l.google.com:19302'}];
         const MAX_FILE_SIZE = 600 * 1024 * 1024;
-        const CHUNK_SIZE = 16384;
+        const CHUNK_SIZE = 8192; // Reduced to 8KB for reliability
 
         let myName = '';
         let isHost = false;
         let connections = new Map();
         let hostConnectionCounter = 0;
         let currentMode = 'create';
-        let incomingFiles = new Map();
-        let fileStorage = new Map(); // Store blobs for viewing
+        let fileStorage = new Map();
+        let pendingFiles = []; // Queue for files sent before connection
+        let messageQueue = []; // Queue for messages
 
-        // Theme
+        // Theme functions
         function toggleTheme() {
             const current = document.documentElement.getAttribute('data-theme');
             const next = current === 'dark' ? 'light' : 'dark';
@@ -696,6 +719,14 @@
             document.getElementById('joinMode').classList.toggle('hidden', mode !== 'join');
         }
 
+        function showError(msg) {
+            const toast = document.createElement('div');
+            toast.className = 'error-toast';
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
         function log(msg, type='system') {
             console.log(msg);
             addSystemMessage(msg, type);
@@ -709,7 +740,7 @@
             if (type === 'disconnect') div.classList.add('disconnect');
             div.textContent = text;
             container.appendChild(div);
-            container.scrollTop = container.scrollHeight;
+            scrollToBottom();
         }
 
         function updateStatus() {
@@ -717,9 +748,28 @@
             const statusEl = document.getElementById('status');
             statusEl.textContent = hasConnection ? 'Online' : 'Offline';
             statusEl.classList.toggle('online', hasConnection);
+            
+            // Send any queued files/messages now that we're connected
+            if (hasConnection) {
+                flushQueues();
+            }
         }
 
-        // WebRTC
+        function flushQueues() {
+            // Send queued messages
+            while (messageQueue.length > 0) {
+                const msg = messageQueue.shift();
+                broadcast(msg);
+            }
+            
+            // Process pending files
+            while (pendingFiles.length > 0) {
+                const fileData = pendingFiles.shift();
+                broadcastFile(fileData);
+            }
+        }
+
+        // WebRTC Functions
         async function createRoom() {
             myName = document.getElementById('createName').value.trim() || 'Host';
             isHost = true;
@@ -811,7 +861,8 @@
                 log(`Connected to ${data.name || 'peer'}`);
                 updateStatus();
             } catch (e) {
-                log('Invalid answer code');
+                showError('Invalid answer code');
+                console.error(e);
             }
         }
 
@@ -853,12 +904,19 @@
                 document.getElementById('answerCode').textContent = answerCode;
                 document.getElementById('joinPanel').classList.remove('hidden');
             } catch (e) {
-                alert('Invalid code');
+                showError('Invalid invite code');
             }
         }
 
+        // File reception state
+        let incomingFiles = new Map(); // peerId + fileId -> chunks
+
         function setupChannel(channel, peerId) {
             channel.binaryType = 'arraybuffer';
+            let currentFileId = null;
+            let fileBuffer = [];
+            let expectedSize = 0;
+            let receivedSize = 0;
             
             channel.onopen = () => {
                 const conn = connections.get(peerId);
@@ -869,7 +927,13 @@
                 updateStatus();
                 log(`${connections.get(peerId)?.name || 'Someone'} joined`);
                 updatePeerList();
-                channel.send(JSON.stringify({type: 'announce', name: myName}));
+                
+                // Send announcement
+                try {
+                    channel.send(JSON.stringify({type: 'announce', name: myName}));
+                } catch (e) {
+                    console.error('Failed to announce:', e);
+                }
             };
             
             channel.onclose = () => {
@@ -882,72 +946,104 @@
                 updatePeerList();
             };
             
+            channel.onerror = (e) => {
+                console.error('Channel error:', e);
+                showError('Connection error occurred');
+            };
+            
             channel.onmessage = (e) => {
                 if (e.data instanceof ArrayBuffer) {
-                    handleBinaryData(e.data, peerId);
+                    // Handle binary file data
+                    if (currentFileId) {
+                        fileBuffer.push(e.data);
+                        receivedSize += e.data.byteLength;
+                        
+                        if (receivedSize >= expectedSize) {
+                            // File complete
+                            const blob = new Blob(fileBuffer);
+                            const conn = connections.get(peerId);
+                            displayFileMessage({
+                                id: currentFileId,
+                                name: 'Unknown',
+                                type: 'application/octet-stream',
+                                size: expectedSize
+                            }, blob, conn?.name || 'Unknown', false, true);
+                            
+                            // Reset
+                            currentFileId = null;
+                            fileBuffer = [];
+                            expectedSize = 0;
+                            receivedSize = 0;
+                        }
+                    }
                 } else {
                     try {
                         const data = JSON.parse(e.data);
+                        
                         if (data.type === 'chat') {
                             displayMessage(data.name, data.text, false);
                         } else if (data.type === 'announce') {
                             const conn = connections.get(peerId);
-                            if (conn) conn.name = data.name;
-                            log(`${data.name} joined`);
+                            if (conn) {
+                                conn.name = data.name;
+                                log(`${data.name} joined`);
+                                updatePeerList();
+                            }
                         } else if (data.type === 'file-start') {
-                            startFileReceive(data, peerId);
-                        } else if (data.type === 'file-chunk') {
-                            receiveFileChunk(data, peerId);
+                            // New file incoming
+                            currentFileId = data.id;
+                            expectedSize = data.size;
+                            receivedSize = 0;
+                            fileBuffer = [];
+                            
+                            // Store metadata temporarily
+                            incomingFiles.set(data.id, {
+                                name: data.name,
+                                type: data.type,
+                                size: data.size
+                            });
+                        } else if (data.type === 'file-complete') {
+                            // Alternative: metadata sent after binary data
+                            const metadata = incomingFiles.get(data.id);
+                            if (metadata && fileBuffer.length > 0) {
+                                const blob = new Blob(fileBuffer, {type: metadata.type});
+                                const conn = connections.get(peerId);
+                                displayFileMessage(metadata, blob, conn?.name || 'Unknown', false, true);
+                                
+                                // Cleanup
+                                incomingFiles.delete(data.id);
+                                fileBuffer = [];
+                                currentFileId = null;
+                            }
                         }
-                    } catch (err) {}
+                    } catch (err) {
+                        console.error('Parse error:', err);
+                    }
                 }
             };
         }
 
-        function startFileReceive(metadata, peerId) {
-            incomingFiles.set(peerId, {
-                chunks: [],
-                metadata: metadata,
-                received: 0
-            });
-        }
-
-        function receiveFileChunk(data, peerId) {
-            const fileInfo = incomingFiles.get(peerId);
-            if (!fileInfo) return;
-            
-            const binary = atob(data.chunk);
-            const bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) {
-                bytes[i] = binary.charCodeAt(i);
-            }
-            
-            fileInfo.chunks.push(bytes.buffer);
-            fileInfo.received += bytes.length;
-            
-            if (fileInfo.received >= fileInfo.metadata.size) {
-                const blob = new Blob(fileInfo.chunks, { type: fileInfo.metadata.type });
-                displayFileMessage(fileInfo.metadata, blob, connections.get(peerId)?.name || 'Unknown', false);
-                incomingFiles.delete(peerId);
-            }
-        }
-
         // Chat Functions
         function enterChat() {
+            if (isHost) {
+                const inputs = document.querySelectorAll('#answerList textarea');
+                Promise.all(Array.from(inputs).map(async (input) => {
+                    if (input.value.trim()) {
+                        await processAnswer(input.value.trim());
+                        input.value = '';
+                    }
+                })).then(() => {
+                    showChat();
+                });
+            } else {
+                showChat();
+            }
+        }
+
+        function showChat() {
             document.getElementById('setupView').classList.add('hidden');
             document.getElementById('chatView').classList.remove('hidden');
             document.getElementById('inviteBtn').style.display = 'block';
-            if (isHost) processAnswers();
-        }
-
-        async function processAnswers() {
-            const inputs = document.querySelectorAll('#answerList textarea');
-            for (let input of inputs) {
-                if (input.value.trim()) {
-                    await processAnswer(input.value.trim());
-                    input.value = '';
-                }
-            }
             log('Chat started');
         }
 
@@ -961,51 +1057,75 @@
             scrollToBottom();
         }
 
-        function displayFileMessage(metadata, blob, name, isOwn) {
+        let fileCounter = 0;
+
+        function displayFileMessage(metadata, blob, name, isOwn, isRemote = false) {
             const container = document.getElementById('messages');
             const div = document.createElement('div');
             div.className = 'message ' + (isOwn ? 'own' : 'other');
             if (!isOwn) div.innerHTML = `<div class="msg-author">${escapeHtml(name)}</div>`;
             
-            const fileId = generateId();
+            const fileId = 'file-' + Date.now() + '-' + (fileCounter++);
             fileStorage.set(fileId, {blob, metadata});
             
-            // Determine icon based on file type
+            // Determine icon
             let icon = '📎';
-            if (metadata.type.startsWith('image/')) icon = '🖼️';
-            else if (metadata.type.startsWith('video/')) icon = '🎬';
-            else if (metadata.type.startsWith('audio/')) icon = '🎵';
-            else if (metadata.name.endsWith('.exe')) icon = '⚙️';
-            else if (metadata.name.endsWith('.pdf')) icon = '📄';
-            else if (metadata.name.endsWith('.zip') || metadata.name.endsWith('.rar')) icon = '📦';
+            const fileName = metadata.name.toLowerCase();
+            if (metadata.type?.startsWith('image/') || fileName.match(/\.(jpg|jpeg|png|gif|webp|bmp)$/)) icon = '🖼️';
+            else if (metadata.type?.startsWith('video/') || fileName.match(/\.(mp4|mov|avi|mkv)$/)) icon = '🎬';
+            else if (metadata.type?.startsWith('audio/') || fileName.match(/\.(mp3|wav|flac|aac)$/)) icon = '🎵';
+            else if (fileName.match(/\.(exe|dmg|pkg|deb|rpm|msi|bat|sh|apk)$/)) icon = '⚙️';
+            else if (fileName.match(/\.(pdf|doc|docx|txt|rtf)$/)) icon = '📄';
+            else if (fileName.match(/\.(zip|rar|7z|tar|gz)$/)) icon = '📦';
             
-            const isExecutable = metadata.name.match(/\.(exe|dmg|pkg|deb|rpm|msi|bat|sh)$/i);
+            const isExecutable = fileName.match(/\.(exe|dmg|pkg|deb|rpm|msi|bat|sh|apk)$/i);
+            const action = isExecutable ? 'Install' : (icon === '🖼️' || icon === '🎬') ? 'View' : 'Download';
             
             div.innerHTML += `
-                <div class="file-box" onclick="handleFileClick('${fileId}')" data-id="${fileId}">
+                <div class="file-box" onclick="handleFileClick('${fileId}')" id="box-${fileId}">
                     <span class="file-icon">${icon}</span>
                     <div class="file-details">
                         <span class="file-name">${escapeHtml(metadata.name)}</span>
-                        <span class="file-meta">${formatFileSize(metadata.size)} ${isExecutable ? '• Click to install' : '• Click to view'}</span>
+                        <span class="file-meta">${formatFileSize(metadata.size)} • Tap to ${action}</span>
+                        ${!isRemote ? '<span class="transfer-status" id="status-' + fileId + '">Sending...</span>' : ''}
                     </div>
                 </div>
             `;
             
             container.appendChild(div);
             scrollToBottom();
+            
+            // If it's our file and we have connections, mark as sent when done
+            if (!isRemote) {
+                updateFileStatus(fileId, 'Sent');
+            }
+            
+            return fileId;
+        }
+
+        function updateFileStatus(fileId, status) {
+            const el = document.getElementById('status-' + fileId);
+            if (el) {
+                el.textContent = status;
+                el.style.color = 'var(--success)';
+                setTimeout(() => el.remove(), 2000);
+            }
         }
 
         function handleFileClick(fileId) {
             const fileData = fileStorage.get(fileId);
-            if (!fileData) return;
+            if (!fileData) {
+                showError('File no longer available');
+                return;
+            }
             
             const {blob, metadata} = fileData;
-            const isImage = metadata.type.startsWith('image/') || metadata.name.match(/\.(jpg|jpeg|png|gif|webp)$/i);
-            const isVideo = metadata.type.startsWith('video/');
-            const isExecutable = metadata.name.match(/\.(exe|dmg|pkg|deb|rpm|msi|bat|sh)$/i);
+            const fileName = metadata.name.toLowerCase();
+            const isImage = metadata.type?.startsWith('image/') || fileName.match(/\.(jpg|jpeg|png|gif|webp|bmp)$/);
+            const isVideo = metadata.type?.startsWith('video/') || fileName.match(/\.(mp4|mov|avi|mkv)$/);
+            const isExecutable = fileName.match(/\.(exe|dmg|pkg|deb|rpm|msi|bat|sh|apk)$/i);
             
             if (isImage || isVideo) {
-                // Show in modal
                 showMediaModal(blob, metadata);
             } else {
                 // Download/Install
@@ -1018,7 +1138,8 @@
                 document.body.removeChild(a);
                 
                 if (isExecutable) {
-                    log('Downloaded executable: ' + metadata.name);
+                    log('Downloaded: ' + metadata.name);
+                    showError('Run the downloaded file to install');
                 }
             }
         }
@@ -1031,10 +1152,10 @@
             
             const url = URL.createObjectURL(blob);
             
-            if (metadata.type.startsWith('image/')) {
-                content.innerHTML = `<img src="${url}" alt="${escapeHtml(metadata.name)}">`;
-            } else if (metadata.type.startsWith('video/')) {
-                content.innerHTML = `<video src="${url}" controls></video>`;
+            if (metadata.type?.startsWith('image/')) {
+                content.innerHTML = `<img src="${url}" alt="${escapeHtml(metadata.name)}" style="max-height: 60vh;">`;
+            } else if (metadata.type?.startsWith('video/')) {
+                content.innerHTML = `<video src="${url}" controls style="max-height: 60vh;"></video>`;
             }
             
             info.innerHTML = `<strong>${escapeHtml(metadata.name)}</strong><br>${formatFileSize(metadata.size)}`;
@@ -1055,48 +1176,140 @@
             
             displayMessage(myName, text, true);
             input.value = '';
-            broadcast({type: 'chat', name: myName, text: text});
+            
+            const data = {type: 'chat', name: myName, text: text};
+            
+            // Check if we have open connections
+            const hasOpen = Array.from(connections.values()).some(c => c.connected);
+            if (hasOpen) {
+                broadcast(data);
+            } else {
+                messageQueue.push(data);
+                addSystemMessage('Message queued (waiting for peers)...');
+            }
         }
 
         function broadcast(data) {
             const msg = JSON.stringify(data);
+            let sent = false;
             connections.forEach(conn => {
                 if (conn.channel?.readyState === 'open') {
                     try {
                         conn.channel.send(msg);
-                    } catch (e) {}
+                        sent = true;
+                    } catch (e) {
+                        console.error('Send failed to', conn.id, e);
+                    }
                 }
             });
+            return sent;
         }
 
-        // File Handling
+        // File Handling - Fixed Version
         async function handleFileSelect(event) {
             const files = Array.from(event.target.files);
             event.target.value = '';
             
+            const hasConnections = Array.from(connections.values()).some(c => c.connected);
+            
             for (const file of files) {
                 if (file.size > MAX_FILE_SIZE) {
-                    alert(`${file.name} is too large (max 600MB)`);
+                    showError(`${file.name} too large (max 600MB)`);
                     continue;
                 }
                 
+                // Show locally immediately
                 const buffer = await file.arrayBuffer();
                 const blob = new Blob([buffer], {type: file.type});
-                displayFileMessage({name: file.name, type: file.type, size: file.size}, blob, myName, true);
+                const fileId = displayFileMessage({
+                    name: file.name,
+                    type: file.type,
+                    size: file.size
+                }, blob, myName, true, false);
                 
-                // Send file
-                const metadata = {type: 'file-start', name: file.name, size: file.size, type: file.type};
-                broadcast(metadata);
-                
-                let offset = 0;
-                while (offset < buffer.byteLength) {
-                    const chunk = buffer.slice(offset, offset + CHUNK_SIZE);
-                    const base64 = btoa(String.fromCharCode(...new Uint8Array(chunk)));
-                    broadcast({type: 'file-chunk', chunk: base64});
-                    offset += CHUNK_SIZE;
-                    if (offset % (CHUNK_SIZE * 10) === 0) await new Promise(r => setTimeout(r, 10));
+                if (hasConnections) {
+                    // Send immediately
+                    await sendFileToAll(file, buffer, fileId);
+                } else {
+                    // Queue for later
+                    pendingFiles.push({file, buffer, fileId});
+                    updateFileStatus(fileId, 'Waiting for peers...');
+                    addSystemMessage('File queued - will send when peers connect');
                 }
             }
+        }
+
+        async function sendFileToAll(file, buffer, localFileId) {
+            const fileId = 'file-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+            
+            // Send metadata first
+            const metadata = {
+                type: 'file-start',
+                id: fileId,
+                name: file.name,
+                size: file.size,
+                mimeType: file.type
+            };
+            
+            // Send to all connected peers
+            const peers = Array.from(connections.values()).filter(c => c.connected);
+            if (peers.length === 0) {
+                updateFileStatus(localFileId, 'Failed - no peers');
+                return;
+            }
+            
+            // Send metadata
+            broadcast(metadata);
+            
+            // Small delay to ensure metadata arrives first
+            await new Promise(r => setTimeout(r, 100));
+            
+            // Send chunks
+            let offset = 0;
+            const totalChunks = Math.ceil(buffer.byteLength / CHUNK_SIZE);
+            let chunksSent = 0;
+            
+            while (offset < buffer.byteLength) {
+                const chunk = buffer.slice(offset, Math.min(offset + CHUNK_SIZE, buffer.byteLength));
+                
+                // Send to all peers
+                peers.forEach(conn => {
+                    if (conn.channel?.readyState === 'open') {
+                        try {
+                            conn.channel.send(chunk);
+                        } catch (e) {
+                            console.error('Chunk send failed:', e);
+                        }
+                    }
+                });
+                
+                offset += CHUNK_SIZE;
+                chunksSent++;
+                
+                // Update progress every 10%
+                if (chunksSent % Math.max(1, Math.floor(totalChunks / 10)) === 0) {
+                    const progress = Math.round((chunksSent / totalChunks) * 100);
+                    updateFileStatus(localFileId, `Sending ${progress}%`);
+                }
+                
+                // Yield to prevent blocking
+                if (chunksSent % 10 === 0) {
+                    await new Promise(r => setTimeout(r, 0));
+                }
+            }
+            
+            // Signal completion
+            await new Promise(r => setTimeout(r, 100));
+            broadcast({
+                type: 'file-complete',
+                id: fileId
+            });
+            
+            updateFileStatus(localFileId, 'Sent');
+        }
+
+        function broadcastFile(fileData) {
+            sendFileToAll(fileData.file, fileData.buffer, fileData.fileId);
         }
 
         function formatFileSize(bytes) {
@@ -1130,7 +1343,6 @@
             return Math.random().toString(36).substr(2, 9);
         }
 
-        // Invite Modal Functions
         function showInvite() {
             document.getElementById('inviteModal').classList.remove('hidden');
             updatePeerList();
@@ -1167,6 +1379,14 @@
                 const original = btn.textContent;
                 btn.textContent = 'Copied!';
                 setTimeout(() => btn.textContent = original, 1500);
+            }).catch(() => {
+                // Fallback
+                const range = document.createRange();
+                range.selectNode(el);
+                window.getSelection().removeAllRanges();
+                window.getSelection().addRange(range);
+                document.execCommand('copy');
+                window.getSelection().removeAllRanges();
             });
         }
     </script>
